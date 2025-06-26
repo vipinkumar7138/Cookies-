@@ -1,126 +1,73 @@
-from flask import Flask, request, jsonify
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-import time
+from flask import Flask, request, render_template_string
+import os
 
 app = Flask(__name__)
 
-# HTML इंटरफेस
-HTML = '''
+# HTML (सीधे Python में लिखा हुआ)
+HTML = """
 <!DOCTYPE html>
-<html lang="hi">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Facebook Cookie Extractor</title>
+    <title>फेसबुक टोकन एक्सट्रैक्टर</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #1877f2; text-align: center; }
-        .form-group { margin-bottom: 15px; }
-        input, button { width: 100%; padding: 10px; margin-top: 5px; }
-        button { background: #1877f2; color: white; border: none; cursor: pointer; }
-        #result { margin-top: 20px; display: none; }
-        textarea { width: 100%; height: 100px; }
+        .box { border: 1px solid #ddd; padding: 20px; margin-top: 20px; border-radius: 5px; }
+        .warning { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Facebook Cookie Extractor</h1>
-        <div class="form-group">
-            <label>Email/Phone:</label>
-            <input type="text" id="email" placeholder="Enter email/phone">
-        </div>
-        <div class="form-group">
-            <label>Password:</label>
-            <input type="password" id="password" placeholder="Enter password">
-        </div>
-        <button id="extract-btn">Extract Cookies</button>
-        <div id="result"></div>
+    <h1>फेसबुक टोकन निकालें</h1>
+    
+    <form method="post" enctype="multipart/form-data">
+        <p>अपनी ब्राउज़र कुकी फाइल (cookies.txt) अपलोड करें:</p>
+        <input type="file" name="cookie_file" accept=".txt" required>
+        <br><br>
+        <button type="submit">टोकन निकालें</button>
+    </form>
+
+    {% if token %}
+    <div class="box">
+        <h3>मिले टोकन:</h3>
+        <p><strong>c_user:</strong> {{ token.c_user }}</p>
+        <p><strong>xs टोकन:</strong> {{ token.xs }}</p>
+        <p class="warning">⚠️ इन टोकन को किसी के साथ शेयर न करें!</p>
     </div>
+    {% endif %}
 
-    <script>
-        document.getElementById('extract-btn').addEventListener('click', async () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            if(!email || !password) {
-                alert('Please enter both email and password');
-                return;
-            }
-
-            try {
-                const response = await fetch('/extract', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({email, password})
-                });
-                const data = await response.json();
-                
-                if(data.status === 'success') {
-                    document.getElementById('result').innerHTML = `
-                        <h3>Success!</h3>
-                        <textarea readonly>${data.cookies}</textarea>
-                    `;
-                    document.getElementById('result').style.display = 'block';
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            } catch(error) {
-                alert('Error: ' + error);
-            }
-        });
-    </script>
+    <div class="box">
+        <h3>कुकी फाइल कैसे ढूंढें?</h3>
+        <ul>
+            <li><strong>Chrome:</strong> <code>chrome://settings/cookies/detail?site=facebook.com</code></li>
+            <li><strong>Firefox:</strong> Addon like "Export Cookies"</li>
+            <li><strong>Edge:</strong> <code>edge://settings/siteData</code></li>
+        </ul>
+    </div>
 </body>
 </html>
-'''
+"""
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
-    return HTML
+    token = None
+    if request.method == 'POST':
+        file = request.files['cookie_file']
+        if file:
+            cookies = file.read().decode('utf-8')
+            token = extract_facebook_tokens(cookies)
+    return render_template_string(HTML, token=token)
 
-@app.route('/extract', methods=['POST'])
-def extract_cookies():
-    try:
-        data = request.get_json()
-        email = data['email']
-        password = data['password']
-
-        # Chrome सेटअप
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        
-        driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
-        
-        # Facebook लॉगिन
-        driver.get("https://facebook.com")
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "email"))).send_keys(email)
-        driver.find_element(By.ID, "pass").send_keys(password)
-        driver.find_element(By.NAME, "login").click()
-        time.sleep(5)
-
-        # कुकीज एक्सट्रेक्ट
-        cookies = driver.get_cookies()
-        driver.quit()
-
-        # फॉर्मेट करें
-        cookie_str = "; ".join([f"{c['name']}={c['value']}" for c in cookies])
-        
-        return jsonify({
-            "status": "success",
-            "cookies": cookie_str
-        })
-
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        })
+def extract_facebook_tokens(cookies_text):
+    lines = cookies_text.split('\n')
+    tokens = {'c_user': None, 'xs': None}
+    
+    for line in lines:
+        if 'facebook.com' in line:
+            if '\tc_user\t' in line:
+                tokens['c_user'] = line.split('\t')[-1].strip()
+            elif '\txs\t' in line:
+                tokens['xs'] = line.split('\t')[-1].strip()
+    
+    return tokens if tokens['c_user'] and tokens['xs'] else None
 
 if __name__ == '__main__':
     app.run(debug=True)
