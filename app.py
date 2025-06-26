@@ -5,72 +5,92 @@ import re
 
 app = Flask(__name__)
 
-# HTML कोड सीधे Python में
+# HTML Template with Bootstrap
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>Facebook Cookies Extractor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; }
-        .container { background: #f0f2f5; padding: 20px; border-radius: 8px; }
-        input { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; }
-        button { background: #1877f2; color: white; border: none; padding: 10px; width: 100%; border-radius: 4px; }
-        #result { margin-top: 20px; padding: 10px; border-radius: 4px; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
+        body { background-color: #f0f2f5; padding: 20px; }
+        .container { max-width: 500px; margin-top: 50px; }
+        .card { border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .btn-primary { background-color: #1877f2; border: none; }
+        #result { margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Facebook Cookies Extractor</h2>
-        <p><strong>Note:</strong> For educational purposes only</p>
-        
-        <form id="loginForm">
-            <input type="text" name="email" placeholder="Email or Phone" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Extract Cookies</button>
-        </form>
-        
-        <div id="result"></div>
-        
-        <h3>Manual Method:</h3>
-        <ol>
-            <li>Facebook पर लॉगिन करें</li>
-            <li>Chrome/Firefox में F12 दबाएं</li>
-            <li>Application > Cookies पर जाएं</li>
-            <li><code>c_user</code> और <code>xs</code> कुकीज कॉपी करें</li>
-            <li><code>cookies.txt</code> फाइल में पेस्ट करें</li>
-        </ol>
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4">Facebook Cookies Extractor</h2>
+                <p class="text-muted text-center mb-4">For educational purposes only</p>
+                
+                <form id="loginForm">
+                    <div class="mb-3">
+                        <input type="text" class="form-control" name="email" placeholder="Email or Phone" required>
+                    </div>
+                    <div class="mb-3">
+                        <input type="password" class="form-control" name="password" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Extract Cookies</button>
+                </form>
+                
+                <div id="result"></div>
+                
+                <hr>
+                <h5>Manual Method:</h5>
+                <ol class="small">
+                    <li>Login to Facebook in Chrome/Firefox</li>
+                    <li>Press F12 to open Developer Tools</li>
+                    <li>Go to Application > Cookies</li>
+                    <li>Copy <code>c_user</code> and <code>xs</code> cookies</li>
+                    <li>Paste in <code>cookies.txt</code> file</li>
+                </ol>
+            </div>
+        </div>
     </div>
 
     <script>
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const formData = new FormData(this);
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="alert alert-info">Processing...</div>';
             
+            const formData = new FormData(this);
             fetch('/extract_cookies', {
                 method: 'POST',
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
-                const resultDiv = document.getElementById('result');
-                resultDiv.className = data.success ? 'success' : 'error';
-                
                 if(data.success) {
                     resultDiv.innerHTML = `
-                        <h3>Success!</h3>
-                        <p>Cookies saved to cookies.txt</p>
-                        <textarea style="width:100%; height:100px;">${JSON.stringify(data.cookies, null, 2)}</textarea>
+                        <div class="alert alert-success">
+                            <h5>Success!</h5>
+                            <p>Cookies saved to cookies.txt</p>
+                            <textarea class="form-control mt-2" rows="4" readonly>${JSON.stringify(data.cookies, null, 2)}</textarea>
+                            <p class="mt-2 small text-muted">Use these in your message sending script</p>
+                        </div>
                     `;
                 } else {
                     resultDiv.innerHTML = `
-                        <h3>Error!</h3>
-                        <p>${data.message}</p>
-                        <p>Manual method try करें</p>
+                        <div class="alert alert-danger">
+                            <h5>Error!</h5>
+                            <p>${data.message}</p>
+                            <p class="mt-2">Please try the manual method</p>
+                        </div>
                     `;
                 }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>Connection Error</h5>
+                        <p>Please check your internet</p>
+                    </div>
+                `;
             });
         });
     </script>
@@ -91,27 +111,38 @@ def extract_cookies():
         password = request.form.get('password')
         
         if not email or not password:
-            return jsonify({
-                'success': False,
-                'message': 'Email and password are required'
-            })
+            return jsonify({'success': False, 'message': 'Email and password are required'})
 
         session = requests.Session()
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.facebook.com/',
+            'Origin': 'https://www.facebook.com',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1'
         }
         
-        login_page = session.get('https://www.facebook.com/login', headers=headers)
+        # Get login page with modern URL
+        login_url = 'https://www.facebook.com/login/?next=https%3A%2F%2Fwww.facebook.com%2F'
+        login_page = session.get(login_url, headers=headers)
         
-        fb_dtsg = re.search(r'name="fb_dtsg" value="([^"]+)"', login_page.text)
-        jazoest = re.search(r'name="jazoest" value="([^"]+)"', login_page.text)
+        # Modern token extraction
+        fb_dtsg = re.search(r'"token":"([^"]+)"', login_page.text) or \
+                 re.search(r'name="fb_dtsg" value="([^"]+)"', login_page.text)
+        jazoest = re.search(r'"jazoest":"([^"]+)"', login_page.text) or \
+                 re.search(r'name="jazoest" value="([^"]+)"', login_page.text)
         
         if not fb_dtsg or not jazoest:
             return jsonify({
                 'success': False,
-                'message': 'Failed to extract Facebook tokens'
+                'message': 'Facebook has blocked automated access. Please use manual method.'
             })
 
+        # Prepare login data
         login_data = {
             'email': email,
             'pass': password,
@@ -120,8 +151,15 @@ def extract_cookies():
             'login': 'Log In'
         }
         
-        response = session.post('https://www.facebook.com/login', data=login_data, headers=headers)
+        # Submit login
+        response = session.post(
+            'https://www.facebook.com/login/device-based/regular/login/',
+            data=login_data,
+            headers=headers,
+            allow_redirects=True
+        )
         
+        # Check login success
         if 'c_user' in session.cookies:
             cookies = {
                 'c_user': session.cookies.get('c_user'),
@@ -130,6 +168,7 @@ def extract_cookies():
                 'datr': session.cookies.get('datr', '')
             }
             
+            # Save cookies
             with open('cookies.txt', 'w') as f:
                 f.write(f"c_user={cookies['c_user']}; xs={cookies['xs']}; fr={cookies['fr']}; datr={cookies['datr']}")
             
@@ -141,13 +180,13 @@ def extract_cookies():
         else:
             return jsonify({
                 'success': False,
-                'message': 'Login failed. Check credentials or try manual method.'
+                'message': 'Login failed. Facebook may have detected automation.'
             })
             
     except Exception as e:
         return jsonify({
             'success': False,
-            'message': f'Error: {str(e)}'
+            'message': f'Technical error: {str(e)}'
         })
 
 if __name__ == '__main__':
