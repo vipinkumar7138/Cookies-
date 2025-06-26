@@ -5,24 +5,25 @@ import re
 
 app = Flask(__name__)
 
-# Handle both GET and HEAD requests
+# HEAD और GET दोनों रिक्वेस्ट को हैंडल करें
 @app.route('/', methods=['GET', 'HEAD'])
 def home():
     if request.method == 'HEAD':
-        return '', 200
+        return '', 200  # HEAD के लिए खाली जवाब
     return render_template('login.html')
 
+# Cookies Extract करने का API
 @app.route('/extract_cookies', methods=['POST'])
 def extract_cookies():
     try:
         email = request.form.get('email')
         password = request.form.get('password')
         
-        # Security warning (educational purposes only)
+        # सुरक्षा चेतावनी (केवल शिक्षण के लिए)
         if not email or not password:
             return jsonify({
                 'success': False,
-                'message': 'Email and password are required'
+                'message': 'ईमेल और पासवर्ड जरूरी है'
             })
 
         session = requests.Session()
@@ -30,20 +31,20 @@ def extract_cookies():
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        # Get login page
+        # Facebook लॉगिन पेज लोड करें
         login_page = session.get('https://www.facebook.com/login', headers=headers)
         
-        # Extract required tokens
+        # जरूरी टोकन्स निकालें
         fb_dtsg = re.search(r'name="fb_dtsg" value="([^"]+)"', login_page.text)
         jazoest = re.search(r'name="jazoest" value="([^"]+)"', login_page.text)
         
         if not fb_dtsg or not jazoest:
             return jsonify({
                 'success': False,
-                'message': 'Failed to extract Facebook tokens'
+                'message': 'Facebook टोकन निकालने में असफल'
             })
 
-        # Prepare login data
+        # लॉगिन डेटा तैयार करें
         login_data = {
             'email': email,
             'pass': password,
@@ -52,7 +53,7 @@ def extract_cookies():
             'login': 'Log In'
         }
         
-        # Submit login
+        # लॉगिन सबमिट करें
         response = session.post(
             'https://www.facebook.com/login',
             data=login_data,
@@ -60,7 +61,7 @@ def extract_cookies():
             allow_redirects=True
         )
         
-        # Check if login successful
+        # लॉगिन सफलता जांचें
         if 'c_user' in session.cookies:
             cookies = {
                 'c_user': session.cookies.get('c_user'),
@@ -69,27 +70,27 @@ def extract_cookies():
                 'datr': session.cookies.get('datr', '')
             }
             
-            # Save cookies to file
+            # cookies.txt में सेव करें
             with open('cookies.txt', 'w') as f:
                 f.write(f"c_user={cookies['c_user']}; xs={cookies['xs']}; fr={cookies['fr']}; datr={cookies['datr']}")
             
             return jsonify({
                 'success': True,
                 'cookies': cookies,
-                'message': 'Cookies extracted successfully!'
+                'message': 'कुकीज सफलतापूर्वक निकाली गईं!'
             })
         else:
             return jsonify({
                 'success': False,
-                'message': 'Login failed. Check credentials or try manual method.'
+                'message': 'लॉगिन असफल। क्रेडेंशियल्स चेक करें या मैन्युअल विधि आजमाएं।'
             })
             
     except Exception as e:
         return jsonify({
             'success': False,
-            'message': f'Error: {str(e)}'
+            'message': f'त्रुटि: {str(e)}'
         })
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 4000))
+    port = int(os.environ.get("PORT", 4000))  # Render का पोर्ट या डिफ़ॉल्ट 4000
     app.run(host='0.0.0.0', port=port)
