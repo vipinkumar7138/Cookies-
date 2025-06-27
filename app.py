@@ -1,4 +1,4 @@
-# app.py (updated for Render deployment)
+# app.py (Final tested version for Render)
 from flask import Flask, request, render_template_string
 import re
 import os
@@ -9,7 +9,7 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Facebook Token Extractor</title>
+    <title>Facebook EAAD Token Extractor</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -63,30 +63,40 @@ HTML_TEMPLATE = """
             border-radius: 4px;
             margin-bottom: 20px;
         }
+        .error {
+            color: red;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Facebook Token Extractor</h1>
+        <h1>Facebook EAAD Token Extractor</h1>
         
         <div class="instructions">
             <h3>How to use:</h3>
             <ol>
                 <li>Get cookies from Monokai Toolkit app</li>
                 <li>Paste all cookies in the box below</li>
-                <li>Click "Extract Tokens" button</li>
+                <li>Click "Extract EAAD Token" button</li>
             </ol>
         </div>
         
         <form method="POST" action="/extract">
-            <textarea name="cookies" placeholder="Paste cookies here in format: name=value; name2=value2; ..."></textarea>
-            <button type="submit">Extract Tokens</button>
+            <textarea name="cookies" placeholder="Paste cookies here in format: name=value; name2=value2; ..." required></textarea>
+            <button type="submit">Extract EAAD Token</button>
         </form>
         
         {% if result %}
         <div class="result">
-            <h3>Extracted Tokens:</h3>
+            <h3>Extracted EAAD Token:</h3>
             {{ result|safe }}
+        </div>
+        {% endif %}
+        
+        {% if error %}
+        <div class="error">
+            {{ error|safe }}
         </div>
         {% endif %}
     </div>
@@ -100,52 +110,24 @@ def home():
 
 @app.route('/extract', methods=['POST'])
 def extract_tokens():
-    cookies = request.form.get('cookies', '')
+    try:
+        cookies = request.form.get('cookies', '').strip()
+        
+        if not cookies:
+            return render_template_string(HTML_TEMPLATE, error="Please paste cookies in the input box")
+        
+        # Find EAAD... format access token (case insensitive)
+        access_token_match = re.search(r'(EAAD[a-zA-Z0-9]{100,})', cookies, re.IGNORECASE)
+        
+        if access_token_match:
+            result = f"<strong>EAAD Token:</strong> {access_token_match.group(1)}"
+        else:
+            result = "No EAAD Token found in the provided cookies."
+        
+        return render_template_string(HTML_TEMPLATE, result=result)
     
-    tokens = {
-        'access_token': None,
-        'xs_token': None,
-        'c_user': None,
-        'datr': None,
-        'sb': None
-    }
-    
-    access_token_match = re.search(r'([EAA][a-zA-Z0-9]{100,})', cookies)
-    if access_token_match:
-        tokens['access_token'] = access_token_match.group(1)
-    
-    cookie_pairs = [c.strip() for c in cookies.split(';') if c.strip()]
-    for pair in cookie_pairs:
-        if '=' in pair:
-            name, value = pair.split('=', 1)
-            name = name.strip()
-            value = value.strip()
-            
-            if name == 'xs':
-                tokens['xs_token'] = value
-            elif name == 'c_user':
-                tokens['c_user'] = value
-            elif name == 'datr':
-                tokens['datr'] = value
-            elif name == 'sb':
-                tokens['sb'] = value
-    
-    result = ""
-    if tokens['access_token']:
-        result += f"<strong>Access Token:</strong> {tokens['access_token']}<br><br>"
-    if tokens['xs_token']:
-        result += f"<strong>XS Token:</strong> {tokens['xs_token']}<br>"
-    if tokens['c_user']:
-        result += f"<strong>c_user:</strong> {tokens['c_user']}<br>"
-    if tokens['datr']:
-        result += f"<strong>datr:</strong> {tokens['datr']}<br>"
-    if tokens['sb']:
-        result += f"<strong>sb:</strong> {tokens['sb']}<br>"
-    
-    if not result:
-        result = "No Facebook tokens found in the provided cookies."
-    
-    return render_template_string(HTML_TEMPLATE, result=result)
+    except Exception as e:
+        return render_template_string(HTML_TEMPLATE, error=f"Error processing request: {str(e)}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
