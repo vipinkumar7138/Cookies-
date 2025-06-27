@@ -124,10 +124,35 @@ HTML_TEMPLATE = """
         .group-item {
             padding: 10px 0;
             border-bottom: 1px solid #eee;
+            margin-bottom: 15px;
         }
         
         .group-item:last-child {
             border-bottom: none;
+        }
+        
+        .member-item {
+            padding: 8px;
+            background: #f9f9f9;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .toggle-members {
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        
+        .members-container {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f2f5;
+            border-radius: 4px;
         }
         
         /* Mobile Styles */
@@ -257,12 +282,65 @@ HTML_TEMPLATE = """
                     <div class="group-item">
                         <p><strong>Group ID:</strong> ${group.id}</p>
                         <p><strong>Name:</strong> ${group.name || 'No Name'}</p>
+                        <span class="toggle-members" onclick="toggleMembers('${group.id}', this)">▼ Show Members</span>
+                        <div id="members-${group.id}" class="members-container"></div>
                     </div>
                 `;
             });
             
             resultDiv.innerHTML = html;
             resultDiv.style.display = 'block';
+        }
+        
+        function toggleMembers(groupId, element) {
+            const container = document.getElementById(`members-${groupId}`);
+            const token = document.getElementById('access-token').value.trim();
+            
+            if (container.innerHTML === '') {
+                // Fetch members if not already loaded
+                fetch('/get-members', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        access_token: token,
+                        group_id: groupId 
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        container.innerHTML = `<p>${data.error}</p>`;
+                    } else {
+                        let membersHtml = '<h4>Members:</h4>';
+                        if (data.members && data.members.length > 0) {
+                            data.members.forEach(member => {
+                                membersHtml += `
+                                    <div class="member-item">
+                                        <p><strong>User ID:</strong> ${member.id}</p>
+                                        <p><strong>Name:</strong> ${member.name || 'No Name'}</p>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            membersHtml += '<p>No members found or no permission to view members</p>';
+                        }
+                        container.innerHTML = membersHtml;
+                    }
+                })
+                .catch(error => {
+                    container.innerHTML = `<p>Error loading members: ${error.message}</p>`;
+                });
+            }
+            
+            if (container.style.display === 'none' || container.style.display === '') {
+                container.style.display = 'block';
+                element.textContent = '▲ Hide Members';
+            } else {
+                container.style.display = 'none';
+                element.textContent = '▼ Show Members';
+            }
         }
         
         function showError(message) {
@@ -306,6 +384,28 @@ def extract_groups():
 
     except Exception as e:
         return jsonify({"error": f"Server Error: {str(e)}"})
+
+@app.route('/get-members', methods=['POST'])
+def get_members():
+    token = request.json.get('access_token')
+    group_id = request.json.get('group_id')
+    
+    if not token or not group_id:
+        return jsonify({"error": "Token and group ID required!"})
+
+    try:
+        # Fetch group members
+        members_url = f"https://graph.facebook.com/v12.0/{group_id}/participants?fields=id,name&access_token={token}"
+        members_data = requests.get(members_url).json()
+
+        if "error" in members_data:
+            error_msg = members_data['error']['message']
+            return jsonify({"error": error_msg})
+
+        return jsonify({"members": members_data.get("data", [])})
+
+    except Exception as e:
+        return jsonify({"error": f"Error fetching members: {str(e)}"})
 
 if __name__ == '__main__':
     app.run(debug=True)
