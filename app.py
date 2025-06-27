@@ -1,35 +1,7 @@
-from flask import Flask, render_template_string, request, jsonify, send_file
-from flask_login import LoginManager, UserMixin, login_user, login_required
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from flask import Flask, render_template_string, request, jsonify
 import requests
-import json
-import csv
-from io import StringIO
-from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'
-
-# Setup Flask-Login
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'
-
-# Setup Rate Limiting
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
-)
-
-# Simple user system
-class User(UserMixin):
-    def __init__(self, id):
-        self.id = id
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User(user_id)
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -45,9 +17,7 @@ HTML_TEMPLATE = """
             --text-color: #1c1e21;
             --card-bg: #ffffff;
             --error-color: #ff4d4f;
-            --dark-bg: #18191a;
-            --dark-card: #242526;
-            --dark-text: #e4e6eb;
+            --success-color: #52c41a;
         }
         
         * {
@@ -55,7 +25,6 @@ HTML_TEMPLATE = """
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            transition: background-color 0.3s, color 0.3s;
         }
         
         body {
@@ -64,11 +33,6 @@ HTML_TEMPLATE = """
             line-height: 1.6;
             padding: 0;
             margin: 0;
-        }
-        
-        body.dark-mode {
-            background-color: var(--dark-bg);
-            color: var(--dark-text);
         }
         
         .container {
@@ -89,11 +53,6 @@ HTML_TEMPLATE = """
             max-width: 500px;
             padding: 20px;
             margin: 20px auto;
-        }
-        
-        .dark-mode .card {
-            background-color: var(--dark-card);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.3);
         }
         
         h1 {
@@ -122,14 +81,6 @@ HTML_TEMPLATE = """
             border-radius: 6px;
             font-size: 16px;
             transition: border-color 0.3s;
-            background-color: var(--card-bg);
-            color: var(--text-color);
-        }
-        
-        .dark-mode input[type="text"] {
-            background-color: #3e4042;
-            color: var(--dark-text);
-            border-color: #3e4042;
         }
         
         input[type="text"]:focus {
@@ -137,7 +88,7 @@ HTML_TEMPLATE = """
             outline: none;
         }
         
-        button, .export-btn {
+        button {
             background-color: var(--primary-color);
             color: white;
             border: none;
@@ -151,26 +102,8 @@ HTML_TEMPLATE = """
             transition: background-color 0.3s;
         }
         
-        button:hover, .export-btn:hover {
+        button:hover {
             background-color: #166fe5;
-        }
-        
-        .secondary-btn {
-            background-color: #e4e6eb;
-            color: #1c1e21;
-        }
-        
-        .dark-mode .secondary-btn {
-            background-color: #3e4042;
-            color: var(--dark-text);
-        }
-        
-        .secondary-btn:hover {
-            background-color: #d8dadf;
-        }
-        
-        .dark-mode .secondary-btn:hover {
-            background-color: #4e5052;
         }
         
         .result {
@@ -182,12 +115,15 @@ HTML_TEMPLATE = """
             width: 100%;
         }
         
-        .dark-mode .result {
-            background-color: #3e4042;
-        }
-        
         .error {
             color: var(--error-color);
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .success {
+            color: var(--success-color);
             margin-top: 10px;
             font-size: 14px;
             display: none;
@@ -196,43 +132,54 @@ HTML_TEMPLATE = """
         .group-item {
             padding: 10px 0;
             border-bottom: 1px solid #eee;
-        }
-        
-        .dark-mode .group-item {
-            border-bottom: 1px solid #3e4042;
+            margin-bottom: 15px;
         }
         
         .group-item:last-child {
             border-bottom: none;
         }
         
-        .search-container {
-            margin-bottom: 15px;
-        }
-        
-        .search-container input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #dddfe2;
-            border-radius: 6px;
+        .member-item {
+            padding: 5px;
+            margin: 5px 0;
+            background-color: white;
+            border-radius: 4px;
             font-size: 14px;
         }
         
-        .dark-mode .search-container input {
-            background-color: #3e4042;
-            color: var(--dark-text);
-            border-color: #3e4042;
+        .copy-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
         }
         
-        .controls {
-            display: flex;
-            gap: 10px;
+        .copy-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .toggle-members {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        
+        .toggle-members:hover {
+            background-color: #166fe5;
+        }
+        
+        .members-container {
             margin-top: 10px;
-        }
-        
-        .controls button {
-            width: auto;
-            flex: 1;
+            display: none;
         }
         
         /* Mobile Styles */
@@ -281,24 +228,9 @@ HTML_TEMPLATE = """
             margin: 20px auto;
         }
         
-        .dark-mode .loader {
-            border: 4px solid #3e4042;
-            border-top: 4px solid var(--primary-color);
-        }
-        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-        
-        .token-info {
-            font-size: 12px;
-            color: #65676b;
-            margin-top: 5px;
-        }
-        
-        .dark-mode .token-info {
-            color: #b0b3b8;
         }
     </style>
 </head>
@@ -310,62 +242,24 @@ HTML_TEMPLATE = """
             <div class="form-group">
                 <label for="access-token">Facebook Access Token:</label>
                 <input type="text" id="access-token" placeholder="EAAD... (your access token)">
-                <div id="token-info" class="token-info"></div>
             </div>
             
             <button onclick="extractGroups()">Extract Group UIDs</button>
             
             <div id="loader" class="loader"></div>
             <div id="error" class="error"></div>
+            <div id="success" class="success"></div>
             
             <div id="result" class="result"></div>
         </div>
     </div>
 
     <script>
-        // Check for dark mode preference
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.body.classList.add('dark-mode');
-        }
-        
-        // Toggle dark mode
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-        }
-        
-        // Check localStorage for dark mode setting
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.body.classList.add('dark-mode');
-        }
-        
-        function validateToken(token) {
-            if (!token) return false;
-            
-            // Simple pattern check for FB token
-            return /^[EAa][A-Za-z0-9]{100,}$/.test(token);
-        }
-        
-        function showTokenInfo(valid) {
-            const infoDiv = document.getElementById('token-info');
-            if (valid) {
-                infoDiv.textContent = '✔ Token format appears valid';
-                infoDiv.style.color = 'green';
-            } else {
-                infoDiv.textContent = '⚠ Check token format';
-                infoDiv.style.color = 'orange';
-            }
-        }
-        
-        // Token input validation
-        document.getElementById('access-token').addEventListener('input', function(e) {
-            showTokenInfo(validateToken(e.target.value));
-        });
-        
         function extractGroups() {
             const token = document.getElementById('access-token').value.trim();
             const loader = document.getElementById('loader');
             const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
             const resultDiv = document.getElementById('result');
             
             if (!token) {
@@ -375,6 +269,7 @@ HTML_TEMPLATE = """
             
             // Clear previous results and show loader
             showError('');
+            showSuccess('');
             resultDiv.style.display = 'none';
             loader.style.display = 'block';
             
@@ -385,21 +280,14 @@ HTML_TEMPLATE = """
                 },
                 body: JSON.stringify({ access_token: token })
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(err.error || 'Network response was not ok');
-                    });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 loader.style.display = 'none';
                 
                 if (data.error) {
                     showError(data.error);
                 } else {
-                    displayResults(data.groups, data.token_info);
+                    displayResults(data.groups, data.members);
                 }
             })
             .catch(error => {
@@ -408,7 +296,7 @@ HTML_TEMPLATE = """
             });
         }
         
-        function displayResults(groups, tokenInfo) {
+        function displayResults(groups, membersData) {
             const resultDiv = document.getElementById('result');
             
             if (!groups || groups.length === 0) {
@@ -417,109 +305,87 @@ HTML_TEMPLATE = """
                 return;
             }
             
-            let html = `
-                <h3>Your Messenger Groups (${groups.length})</h3>
-                <div class="search-container">
-                    <input type="text" id="groupSearch" placeholder="Search groups..." oninput="searchGroups()">
-                </div>
-            `;
+            let html = '<h3>Your Messenger Groups:</h3>';
             
-            groups.forEach(group => {
+            groups.forEach((group, index) => {
+                const groupMembers = membersData && membersData[index] ? membersData[index] : [];
+                const memberCount = groupMembers.length;
+                
                 html += `
                     <div class="group-item">
-                        <p><strong>Group ID:</strong> ${group.id}</p>
+                        <p><strong>Group ID:</strong> ${group.id} <button class="copy-btn" onclick="copyToClipboard('${group.id}')">Copy ID</button></p>
                         <p><strong>Name:</strong> ${group.name || 'No Name'}</p>
-                        ${group.updated_time ? `<p><strong>Last Active:</strong> ${new Date(group.updated_time).toLocaleString()}</p>` : ''}
-                        ${group.participants ? `<p><strong>Participants:</strong> ${group.participants.data.length}</p>` : ''}
+                        <p><strong>Members:</strong> ${memberCount} <button class="toggle-members" onclick="toggleMembers('members-${index}')">Show Members</button></p>
+                        
+                        <div id="members-${index}" class="members-container">
+                            ${groupMembers.map(member => `
+                                <div class="member-item">
+                                    <p><strong>ID:</strong> ${member.id} <button class="copy-btn" onclick="copyToClipboard('${member.id}')">Copy</button></p>
+                                    <p><strong>Name:</strong> ${member.name || 'No Name'}</p>
+                                </div>
+                            `).join('')}
+                            
+                            ${memberCount > 0 ? `<button class="copy-btn" onclick="copyAllMembers('${index}')">Copy All Member IDs</button>` : ''}
+                        </div>
                     </div>
                 `;
             });
-            
-            html += `
-                <div class="controls">
-                    <button class="export-btn" onclick="exportToJSON()">Export as JSON</button>
-                    <button class="export-btn secondary-btn" onclick="exportToCSV()">Export as CSV</button>
-                </div>
-                <button class="secondary-btn" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-            `;
-            
-            if (tokenInfo) {
-                html += `
-                    <div class="token-info" style="margin-top: 20px;">
-                        <p><strong>Token Info:</strong></p>
-                        <p>App ID: ${tokenInfo.app_id}</p>
-                        <p>Valid until: ${new Date(tokenInfo.expires_at * 1000).toLocaleString()}</p>
-                        <p>Scopes: ${tokenInfo.scopes.join(', ')}</p>
-                    </div>
-                `;
-            }
             
             resultDiv.innerHTML = html;
             resultDiv.style.display = 'block';
         }
         
-        function searchGroups() {
-            const searchTerm = document.getElementById('groupSearch').value.toLowerCase();
-            const groups = document.querySelectorAll('.group-item');
+        function toggleMembers(id) {
+            const container = document.getElementById(id);
+            const button = container.previousElementSibling.querySelector('.toggle-members');
             
-            groups.forEach(group => {
-                const text = group.textContent.toLowerCase();
-                group.style.display = text.includes(searchTerm) ? 'block' : 'none';
-            });
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+                button.textContent = 'Show Members';
+            } else {
+                container.style.display = 'block';
+                button.textContent = 'Hide Members';
+            }
         }
         
-        function exportToJSON() {
-            const token = document.getElementById('access-token').value.trim();
-            const groups = document.querySelectorAll('.group-item');
-            const data = [];
-            
-            groups.forEach(group => {
-                if (group.style.display !== 'none') {
-                    const id = group.querySelector('p:nth-child(1)').textContent.replace('Group ID:', '').trim();
-                    const name = group.querySelector('p:nth-child(2)').textContent.replace('Name:', '').trim();
-                    data.push({ id, name });
-                }
-            });
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `fb_groups_${new Date().toISOString().slice(0,10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text)
+                .then(() => showSuccess('Copied to clipboard!'))
+                .catch(err => showError('Failed to copy: ' + err));
         }
         
-        function exportToCSV() {
-            const token = document.getElementById('access-token').value.trim();
-            const groups = document.querySelectorAll('.group-item');
-            let csv = 'Group ID,Group Name\n';
-            
-            groups.forEach(group => {
-                if (group.style.display !== 'none') {
-                    const id = group.querySelector('p:nth-child(1)').textContent.replace('Group ID:', '').trim();
-                    const name = group.querySelector('p:nth-child(2)').textContent.replace('Name:', '').trim();
-                    csv += `"${id}","${name}"\n`;
-                }
+        function copyAllMembers(groupIndex) {
+            const memberElements = document.querySelectorAll(`#members-${groupIndex} .member-item p:nth-child(1)`);
+            const memberIds = Array.from(memberElements).map(el => {
+                return el.textContent.replace('ID:', '').trim().split(' ')[0];
             });
             
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `fb_groups_${new Date().toISOString().slice(0,10)}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            navigator.clipboard.writeText(memberIds.join('\n'))
+                .then(() => showSuccess('All member IDs copied to clipboard!'))
+                .catch(err => showError('Failed to copy: ' + err));
         }
         
         function showError(message) {
             const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
             errorDiv.textContent = message;
             errorDiv.style.display = message ? 'block' : 'none';
+            successDiv.style.display = 'none';
+        }
+        
+        function showSuccess(message) {
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = message ? 'block' : 'none';
+            errorDiv.style.display = 'none';
+            
+            // Hide success message after 3 seconds
+            if (message) {
+                setTimeout(() => {
+                    successDiv.style.display = 'none';
+                }, 3000);
+            }
         }
     </script>
 </body>
@@ -531,105 +397,46 @@ def home():
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/extract-groups', methods=['POST'])
-@limiter.limit("10 per minute")
 def extract_groups():
     token = request.json.get('access_token')
     
     if not token:
-        return jsonify({"error": "Token required!"}), 400
+        return jsonify({"error": "Token required!"})
 
     try:
-        # Step 1: Validate token and get debug info
-        debug_url = f"https://graph.facebook.com/debug_token?input_token={token}&access_token={token}"
-        debug_info = requests.get(debug_url).json()
-        
-        if "error" in debug_info:
-            return jsonify({"error": f"Invalid Token: {debug_info['error']['message']}"}), 401
-        
-        token_data = debug_info.get('data', {})
-        token_info = {
-            "app_id": token_data.get('app_id'),
-            "expires_at": token_data.get('expires_at'),
-            "scopes": token_data.get('scopes', [])
-        }
-        
-        # Step 2: Fetch user info to verify token works
+        # Step 1: Check if token is valid
         user_info = requests.get(f"https://graph.facebook.com/v12.0/me?access_token={token}").json()
         if "error" in user_info:
-            return jsonify({"error": f"Token Error: {user_info['error']['message']}"}), 401
+            return jsonify({"error": f"Invalid Token: {user_info['error']['message']}"})
 
-        # Step 3: Fetch Messenger Conversations (Groups) with pagination
-        groups = []
-        groups_url = f"https://graph.facebook.com/v12.0/me/conversations?fields=id,name,updated_time,participants&access_token={token}"
-        
-        while True:
-            groups_data = requests.get(groups_url).json()
-            
-            if "error" in groups_data:
-                error_msg = groups_data['error']['message']
-                if 'permission' in error_msg.lower():
-                    return jsonify({"error": "Missing permissions. Required: user_managed_groups, pages_messaging"}), 403
-                return jsonify({"error": error_msg}), 400
-            
-            groups.extend(groups_data.get("data", []))
-            
-            if "paging" not in groups_data or "next" not in groups_data["paging"]:
-                break
-                
-            groups_url = groups_data["paging"]["next"]
+        # Step 2: Fetch Messenger Conversations (Groups)
+        groups_url = f"https://graph.facebook.com/v12.0/me/conversations?fields=id,name&access_token={token}"
+        groups_data = requests.get(groups_url).json()
+
+        if "error" in groups_data:
+            error_msg = groups_data['error']['message']
+            if 'permission' in error_msg.lower():
+                return jsonify({"error": "Missing permissions. Required: user_managed_groups, pages_messaging"})
+            return jsonify({"error": error_msg})
+
+        # Step 3: Fetch members for each group
+        members_data = []
+        for group in groups_data.get("data", []):
+            try:
+                members_url = f"https://graph.facebook.com/v12.0/{group['id']}/participants?fields=id,name&access_token={token}"
+                members_response = requests.get(members_url).json()
+                members_data.append(members_response.get("data", []))
+            except Exception as e:
+                members_data.append([])
+                continue
 
         return jsonify({
-            "groups": groups,
-            "token_info": token_info
+            "groups": groups_data.get("data", []),
+            "members": members_data
         })
 
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Network Error: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"error": f"Server Error: {str(e)}"}), 500
-
-@app.route('/export/json', methods=['POST'])
-@login_required
-def export_json():
-    data = request.json.get('data')
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    
-    si = StringIO()
-    json.dump(data, si)
-    output = si.getvalue()
-    si.close()
-    
-    return send_file(
-        StringIO(output),
-        mimetype='application/json',
-        as_attachment=True,
-        download_name=f"fb_groups_{datetime.now().date()}.json"
-    )
-
-@app.route('/export/csv', methods=['POST'])
-@login_required
-def export_csv():
-    data = request.json.get('data')
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    
-    si = StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['Group ID', 'Group Name'])
-    
-    for group in data:
-        writer.writerow([group.get('id', ''), group.get('name', '')])
-    
-    output = si.getvalue()
-    si.close()
-    
-    return send_file(
-        StringIO(output),
-        mimetype='text/csv',
-        as_attachment=True,
-        download_name=f"fb_groups_{datetime.now().date()}.csv"
-    )
+        return jsonify({"error": f"Server Error: {str(e)}"})
 
 if __name__ == '__main__':
     app.run(debug=True)
