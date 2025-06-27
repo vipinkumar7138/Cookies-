@@ -1,19 +1,20 @@
-# app.py - Combined Flask backend and HTML frontend for Render deployment
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, render_template_string, request, jsonify
 import requests
-import re
 
 app = Flask(__name__)
 
+# HTML template as a string
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Facebook UID Extractor</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f0f2f5;
@@ -28,13 +29,20 @@ HTML_TEMPLATE = """
             color: #1877f2;
             text-align: center;
         }
-        textarea, input {
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
             width: 100%;
             padding: 10px;
-            margin: 10px 0;
             border: 1px solid #dddfe2;
             border-radius: 6px;
-            box-sizing: border-box;
+            font-size: 16px;
         }
         button {
             background-color: #1877f2;
@@ -42,8 +50,8 @@ HTML_TEMPLATE = """
             border: none;
             padding: 10px 20px;
             border-radius: 6px;
+            font-size: 16px;
             cursor: pointer;
-            font-weight: bold;
             width: 100%;
         }
         button:hover {
@@ -52,70 +60,178 @@ HTML_TEMPLATE = """
         .result {
             margin-top: 20px;
             padding: 15px;
-            background-color: #f0f8ff;
             border-radius: 6px;
-            word-break: break-all;
+            background-color: #f0f2f5;
+            display: none;
         }
-        .disclaimer {
-            margin-top: 20px;
-            font-size: 12px;
-            color: #65676b;
-            text-align: center;
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #e4e6eb;
+            margin-right: 5px;
+            border-radius: 6px 6px 0 0;
+        }
+        .tab.active {
+            background-color: white;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Facebook UID Extractor</h1>
-        <p>Enter your Facebook access token to retrieve your User ID:</p>
         
-        <textarea id="tokenInput" rows="5" placeholder="Paste Facebook access token here..."></textarea>
-        
-        <button onclick="extractUID()">Get UID</button>
-        
-        <div id="result" class="result" style="display: none;">
-            <h3>Result:</h3>
-            <p id="uidOutput"></p>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('profile')">Profile UID</div>
+            <div class="tab" onclick="switchTab('group')">Group UID</div>
         </div>
         
-        <div class="disclaimer">
-            <p>This tool extracts your Facebook User ID from an access token. Never share your token with untrusted parties.</p>
+        <div id="profile-tab" class="tab-content active">
+            <div class="form-group">
+                <label for="profile-url">Facebook Profile URL or Username:</label>
+                <input type="text" id="profile-url" placeholder="https://www.facebook.com/username or just username">
+            </div>
+            <div class="form-group">
+                <label for="access-token">Facebook Access Token:</label>
+                <input type="text" id="access-token" placeholder="EAAD... (your access token)">
+            </div>
+            <button onclick="extractProfileUid()">Extract Profile UID</button>
+            <div id="profile-result" class="result"></div>
+            <div id="profile-error" class="error"></div>
+        </div>
+        
+        <div id="group-tab" class="tab-content">
+            <div class="form-group">
+                <label for="group-url">Facebook Group URL or ID:</label>
+                <input type="text" id="group-url" placeholder="https://www.facebook.com/groups/groupid or just groupid">
+            </div>
+            <div class="form-group">
+                <label for="group-access-token">Facebook Access Token:</label>
+                <input type="text" id="group-access-token" placeholder="EAAD... (your access token)">
+            </div>
+            <button onclick="extractGroupUid()">Extract Group UID</button>
+            <div id="group-result" class="result"></div>
+            <div id="group-error" class="error"></div>
         </div>
     </div>
 
     <script>
-        function extractUID() {
-            const token = document.getElementById('tokenInput').value.trim();
+        function switchTab(tabName) {
+            // Hide all tabs and contents
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
             
-            if (!token) {
-                alert('Please enter a Facebook access token');
+            // Activate selected tab and content
+            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+        
+        function extractProfileUid() {
+            const profileUrl = document.getElementById('profile-url').value.trim();
+            const accessToken = document.getElementById('access-token').value.trim();
+            
+            if (!profileUrl || !accessToken) {
+                showError('profile', 'Please fill in all fields');
                 return;
             }
             
-            // Show loading state
-            const resultDiv = document.getElementById('result');
-            resultDiv.style.display = 'block';
-            document.getElementById('uidOutput').textContent = 'Processing...';
+            // Clear previous results
+            showError('profile', '');
+            document.getElementById('profile-result').style.display = 'none';
             
-            // Send token to backend for processing
-            fetch('/extract-uid', {
+            fetch('/extract-profile', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ token: token }),
+                body: JSON.stringify({
+                    profile_url: profileUrl,
+                    access_token: accessToken
+                })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    document.getElementById('uidOutput').textContent = 'Error: ' + data.error;
+                    showError('profile', data.error);
                 } else {
-                    document.getElementById('uidOutput').textContent = 'User ID: ' + data.uid;
+                    const resultDiv = document.getElementById('profile-result');
+                    resultDiv.innerHTML = `
+                        <strong>Profile UID:</strong> ${data.uid}<br>
+                        <strong>Profile Name:</strong> ${data.name}<br>
+                        <strong>Profile Link:</strong> <a href="https://facebook.com/${data.uid}" target="_blank">https://facebook.com/${data.uid}</a>
+                    `;
+                    resultDiv.style.display = 'block';
                 }
             })
             .catch(error => {
-                document.getElementById('uidOutput').textContent = 'Error: ' + error.message;
+                showError('profile', 'An error occurred: ' + error.message);
             });
+        }
+        
+        function extractGroupUid() {
+            const groupUrl = document.getElementById('group-url').value.trim();
+            const accessToken = document.getElementById('group-access-token').value.trim();
+            
+            if (!groupUrl || !accessToken) {
+                showError('group', 'Please fill in all fields');
+                return;
+            }
+            
+            // Clear previous results
+            showError('group', '');
+            document.getElementById('group-result').style.display = 'none';
+            
+            fetch('/extract-group', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    group_url: groupUrl,
+                    access_token: accessToken
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError('group', data.error);
+                } else {
+                    const resultDiv = document.getElementById('group-result');
+                    resultDiv.innerHTML = `
+                        <strong>Group ID:</strong> ${data.id}<br>
+                        <strong>Group Name:</strong> ${data.name}<br>
+                        <strong>Group Link:</strong> <a href="https://facebook.com/groups/${data.id}" target="_blank">https://facebook.com/groups/${data.id}</a>
+                    `;
+                    resultDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                showError('group', 'An error occurred: ' + error.message);
+            });
+        }
+        
+        function showError(type, message) {
+            const errorDiv = document.getElementById(`${type}-error`);
+            errorDiv.textContent = message;
+            errorDiv.style.display = message ? 'block' : 'none';
         }
     </script>
 </body>
@@ -126,55 +242,76 @@ HTML_TEMPLATE = """
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route('/extract-uid', methods=['POST'])
-def extract_uid():
+@app.route('/extract-profile', methods=['POST'])
+def extract_profile():
     data = request.get_json()
-    token = data.get('token', '').strip()
+    profile_url = data.get('profile_url', '').strip()
+    access_token = data.get('access_token', '').strip()
     
-    if not token:
-        return jsonify({'error': 'No token provided'}), 400
+    if not profile_url or not access_token:
+        return jsonify({'error': 'Profile URL and access token are required'})
     
     try:
-        # Method 1: Try to extract from token directly (JWT format)
-        if '.' in token:
-            parts = token.split('.')
-            if len(parts) > 1:
-                import base64
-                import json
-                try:
-                    payload = parts[1]
-                    # Add padding if needed
-                    payload += '=' * (-len(payload) % 4)
-                    decoded = base64.b64decode(payload).decode('utf-8')
-                    data = json.loads(decoded)
-                    if 'user_id' in data:
-                        return jsonify({'uid': data['user_id']})
-                except:
-                    pass
+        # Extract username from URL if provided
+        if 'facebook.com' in profile_url:
+            username = profile_url.split('facebook.com/')[-1].split('/')[0].split('?')[0]
+        else:
+            username = profile_url
+            
+        # Remove any query parameters
+        username = username.split('?')[0]
         
-        # Method 2: Query Facebook's API
-        try:
-            response = requests.get(
-                f'https://graph.facebook.com/me?access_token={token}',
-                timeout=10
-            )
-            data = response.json()
-            if 'id' in data:
-                return jsonify({'uid': data['id']})
-            elif 'error' in data:
-                return jsonify({'error': data['error']['message']}), 400
-        except requests.RequestException as e:
-            return jsonify({'error': str(e)}), 500
+        # Make API request to get user ID
+        api_url = f'https://graph.facebook.com/v12.0/{username}?fields=id,name&access_token={access_token}'
+        response = requests.get(api_url)
+        result = response.json()
         
-        # Method 3: Try to find UID in token string
-        match = re.search(r'(\d{10,})', token)
-        if match:
-            return jsonify({'uid': match.group(1)})
+        if 'error' in result:
+            return jsonify({'error': result['error']['message']})
         
-        return jsonify({'error': 'Could not extract UID from token'}), 400
+        return jsonify({
+            'uid': result['id'],
+            'name': result.get('name', ''),
+            'username': username
+        })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e)})
+
+@app.route('/extract-group', methods=['POST'])
+def extract_group():
+    data = request.get_json()
+    group_url = data.get('group_url', '').strip()
+    access_token = data.get('access_token', '').strip()
+    
+    if not group_url or not access_token:
+        return jsonify({'error': 'Group URL and access token are required'})
+    
+    try:
+        # Extract group ID from URL if provided
+        if 'facebook.com' in group_url:
+            group_id = group_url.split('groups/')[-1].split('/')[0].split('?')[0]
+        else:
+            group_id = group_url
+            
+        # Remove any query parameters
+        group_id = group_id.split('?')[0]
+        
+        # Make API request to get group info
+        api_url = f'https://graph.facebook.com/v12.0/{group_id}?fields=id,name&access_token={access_token}'
+        response = requests.get(api_url)
+        result = response.json()
+        
+        if 'error' in result:
+            return jsonify({'error': result['error']['message']})
+        
+        return jsonify({
+            'id': result['id'],
+            'name': result.get('name', '')
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
