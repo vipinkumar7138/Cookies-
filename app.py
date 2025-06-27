@@ -214,7 +214,7 @@ HTML_TEMPLATE = """
             
             <div class="form-group">
                 <label for="access-token">Facebook Access Token:</label>
-                <input type="text" id="access-token" placeholder="EAAD... (your access token)">
+                <input type="text" id="access-token" placeholder="EAAD... or EAAG... (your access token)">
             </div>
             
             <button onclick="extractGroups()">Extract Group UIDs</button>
@@ -365,14 +365,30 @@ def extract_groups():
         return jsonify({"error": "Token required!"})
 
     try:
-        # Step 1: Check if token is valid
-        user_info = requests.get(f"https://graph.facebook.com/v12.0/me?access_token={token}").json()
+        # Check token validity (works for both EAAD and EAAG)
+        user_info = requests.get(
+            f"https://graph.facebook.com/v19.0/me",
+            params={
+                'access_token': token,
+                'fields': 'id,name'
+            }
+        ).json()
+        
         if "error" in user_info:
-            return jsonify({"error": f"Invalid Token: {user_info['error']['message']}"})
+            error_msg = user_info['error']['message']
+            if "expired" in error_msg.lower():
+                return jsonify({"error": "Token expired or invalid. Please generate a new one."})
+            return jsonify({"error": f"Invalid Token: {error_msg}"})
 
-        # Step 2: Fetch Messenger Conversations (Groups)
-        groups_url = f"https://graph.facebook.com/v12.0/me/conversations?fields=id,name&access_token={token}"
-        groups_data = requests.get(groups_url).json()
+        # Fetch Messenger Conversations (Groups)
+        groups_data = requests.get(
+            "https://graph.facebook.com/v19.0/me/conversations",
+            params={
+                'access_token': token,
+                'fields': 'id,name',
+                'limit': '100'
+            }
+        ).json()
 
         if "error" in groups_data:
             error_msg = groups_data['error']['message']
@@ -394,9 +410,15 @@ def get_members():
         return jsonify({"error": "Token and group ID required!"})
 
     try:
-        # Fetch group members
-        members_url = f"https://graph.facebook.com/v12.0/{group_id}/participants?fields=id,name&access_token={token}"
-        members_data = requests.get(members_url).json()
+        # Fetch group members (works for both EAAD and EAAG)
+        members_data = requests.get(
+            f"https://graph.facebook.com/v19.0/{group_id}/participants",
+            params={
+                'access_token': token,
+                'fields': 'id,name',
+                'limit': '100'
+            }
+        ).json()
 
         if "error" in members_data:
             error_msg = members_data['error']['message']
