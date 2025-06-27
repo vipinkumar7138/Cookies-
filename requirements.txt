@@ -1,3 +1,2 @@
-Flask==2.0.1
-gunicorn==20.1.0
-setuptools==80.0.0  # 81 से पहले का वर्जन
+Flask==2.3.2
+gunicorn==21.2.0
