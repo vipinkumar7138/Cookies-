@@ -1,191 +1,133 @@
-# app.py (Final Working Version)
-from flask import Flask, request, render_template_string
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from flask import Flask, request, render_template_string, jsonify
 import re
+from http.cookies import SimpleCookie
 import os
-import urllib.parse
 
 app = Flask(__name__)
 
+# HTML Template
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Facebook Token Extractor Pro</title>
+    <title>Facebook EAAD6V7 Token Extractor</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #272822;
+            color: #f8f8f2;
         }
         h1 {
-            color: #1877f2;
-            text-align: center;
+            color: #a6e22e;
         }
         textarea {
             width: 100%;
             height: 200px;
             padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            resize: vertical;
-            font-family: monospace;
+            margin: 10px 0;
+            background-color: #3e3d32;
+            color: #f8f8f2;
+            border: 1px solid #75715e;
         }
         button {
-            background-color: #1877f2;
-            color: white;
+            background-color: #66d9ef;
+            color: #272822;
             border: none;
             padding: 10px 20px;
-            border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
-            margin-top: 10px;
-            width: 100%;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #a6e22e;
         }
         .result {
             margin-top: 20px;
             padding: 15px;
-            background-color: #f0f8ff;
-            border-radius: 4px;
-            border: 1px solid #1877f2;
-            word-wrap: break-word;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #2e8b57;
         }
         .error {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #ffebee;
-            border-radius: 4px;
-            border: 1px solid #f44336;
-            color: #d32f2f;
-        }
-        .debug {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #fff3e0;
-            border-radius: 4px;
-            font-size: 14px;
+            background-color: #f92672;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Facebook Token Extractor Pro</h1>
-        
-        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-            <h3>कैसे उपयोग करें:</h3>
-            <ol>
-                <li><strong>Monokai Toolkit</strong> से सभी कुकीज कॉपी करें (Ctrl+A, Ctrl+C)</li>
-                <li>नीचे दिए बॉक्स में <strong>सभी कुकीज</strong> पेस्ट करें (Ctrl+V)</li>
-                <li>"Extract Token" बटन पर क्लिक करें</li>
-            </ol>
-            <p style="color: #d32f2f; font-weight: bold;">⚠️ ध्यान दें: पूरी कुकीज पेस्ट करें, छोटा हिस्सा नहीं</p>
-        </div>
-        
-        <form method="POST" action="/extract">
-            <textarea name="cookies" placeholder="यहां सभी कुकीज पेस्ट करें (Ctrl+V)" required></textarea>
-            <button type="submit">Extract Token</button>
-        </form>
-        
-        {% if result %}
-        <div class="result">
-            <h3>✅ टोकन मिल गया:</h3>
-            <div style="background: black; color: lime; padding: 10px; border-radius: 4px; overflow-x: auto;">
-                {{ result|safe }}
-            </div>
-            <p style="font-size: 12px; color: #666; margin-top: 5px;">
-                इस टोकन को किसी के साथ शेयर न करें!
-            </p>
-        </div>
-        {% endif %}
-        
-        {% if error %}
-        <div class="error">
-            <h3>❌ समस्या:</h3>
-            {{ error|safe }}
-        </div>
-        {% endif %}
-        
-        {% if debug_info %}
-        <div class="debug">
-            <h3>डीबग जानकारी:</h3>
-            {{ debug_info|safe }}
-        </div>
+    <h1>Facebook EAAD6V7 Token Extractor</h1>
+    <p>Paste your Facebook login cookies below:</p>
+    <form method="POST" action="/extract">
+        <textarea name="cookies" placeholder="Paste cookies here (e.g., c_user=12345; xs=abcde; ...)"></textarea>
+        <button type="submit">Extract Token</button>
+    </form>
+    {% if result %}
+    <div class="result {% if result.error %}error{% else %}success{% endif %}">
+        {% if result.error %}
+            <strong>Error:</strong> {{ result.error }}
+        {% else %}
+            <strong>Extracted Token:</strong><br>{{ result.token }}
+            <br><br>
+            <a href="/download" download="fb_token.txt">Download Token</a>
         {% endif %}
     </div>
+    {% endif %}
 </body>
 </html>
 """
 
-def find_facebook_token(cookies):
-    # Try multiple patterns to find the token
-    patterns = [
-        r'(EAAB[a-zA-Z0-9]{200,})',  # Newer FB token format
-        r'(EAAD[a-zA-Z0-9]{200,})',  # Older FB token format
-        r'([a-zA-Z0-9]{200,})',      # Generic long token
-        r'access_token=([a-zA-Z0-9]{150,})',  # URL encoded token
-        r'"access_token":"([a-zA-Z0-9]{150,})"'  # JSON format
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, cookies, re.IGNORECASE)
-        if match:
-            token = match.group(1)
-            # Basic validation
-            if len(token) >= 150 and not any(c in token for c in [' ', ';', '"', "'"]):
-                return urllib.parse.unquote(token)  # Decode URL encoded tokens
-    
-    return None
+def extract_eaad6v7_token(cookie_string):
+    """
+    Extract EAAD6V7 token from Facebook login cookies
+    """
+    cookie = SimpleCookie()
+    try:
+        cookie.load(cookie_string)
+    except Exception as e:
+        return None, f"Error parsing cookies: {str(e)}"
 
-@app.route('/')
+    # Check for required Facebook cookies
+    if 'c_user' not in cookie or 'xs' not in cookie:
+        return None, "Required Facebook cookies (c_user, xs) not found"
+
+    # Try to find the EAAD6V7 token
+    token_pattern = r'EAAD6V7[0-9A-Za-z]+'
+    match = re.search(token_pattern, cookie_string)
+    
+    if match:
+        return match.group(0), None
+    else:
+        return None, "EAAD6V7 token not found in cookies"
+
+@app.route('/', methods=['GET'])
 def home():
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/extract', methods=['POST'])
-def extract_tokens():
-    try:
-        cookies = request.form.get('cookies', '').strip()
-        
-        if not cookies:
-            return render_template_string(HTML_TEMPLATE, error="कृपया कुकीज पेस्ट करें")
-        
-        if len(cookies) < 100:
-            return render_template_string(HTML_TEMPLATE, 
-                                      error=f"कुकीज बहुत छोटी हैं ({len(cookies)} कैरेक्टर्स), पूरी कुकीज पेस्ट करें")
-        
-        # Find token using advanced detection
-        token = find_facebook_token(cookies)
-        
-        debug_info = [
-            f"स्कैन की गई डेटा: {len(cookies)} कैरेक्टर्स",
-            f"टोकन मिला: {'हाँ' if token else 'नहीं'}"
-        ]
-        
-        if token:
-            # Format token for display
-            formatted_token = f"{token[:50]}...{token[-50:]}" if len(token) > 100 else token
-            full_token = token
-            result = f"""
-            <strong>पूरा टोकन:</strong><br>
-            <span style="user-select: all">{full_token}</span><br><br>
-            <strong>संक्षिप्त:</strong> {formatted_token}<br>
-            <strong>लंबाई:</strong> {len(token)} कैरेक्टर्स
-            """
-            return render_template_string(HTML_TEMPLATE, result=result)
-        
-        return render_template_string(HTML_TEMPLATE,
-                                   error="कोई वैध Facebook टोकन नहीं मिला",
-                                   debug_info="<br>".join(debug_info))
+def extract():
+    cookies = request.form.get('cookies', '').strip()
+    if not cookies:
+        return render_template_string(HTML_TEMPLATE, result={'error': 'Please enter Facebook cookies'})
     
-    except Exception as e:
-        return render_template_string(HTML_TEMPLATE,
-                                   error=f"त्रुटि: {str(e)}")
+    token, error = extract_eaad6v7_token(cookies)
+    if error:
+        return render_template_string(HTML_TEMPLATE, result={'error': error})
+    else:
+        # Store token in session for download
+        app.config['EXTRACTED_TOKEN'] = token
+        return render_template_string(HTML_TEMPLATE, result={'token': token})
+
+@app.route('/download')
+def download():
+    token = app.config.get('EXTRACTED_TOKEN', '')
+    if not token:
+        return "No token available to download", 400
+    return token, 200, {'Content-Disposition': 'attachment; filename=fb_token.txt'}
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
