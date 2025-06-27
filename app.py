@@ -1,7 +1,7 @@
-# app.py (this is a combined HTML/Python file that works with Flask)
-from flask import Flask, request, render_template_string, jsonify
+# app.py (updated for Render deployment)
+from flask import Flask, request, render_template_string
 import re
-import json
+import os
 
 app = Flask(__name__)
 
@@ -102,7 +102,6 @@ def home():
 def extract_tokens():
     cookies = request.form.get('cookies', '')
     
-    # Extract Facebook tokens from cookies
     tokens = {
         'access_token': None,
         'xs_token': None,
@@ -111,12 +110,10 @@ def extract_tokens():
         'sb': None
     }
     
-    # Find access token (EAA... format)
     access_token_match = re.search(r'([EAA][a-zA-Z0-9]{100,})', cookies)
     if access_token_match:
         tokens['access_token'] = access_token_match.group(1)
     
-    # Find other common Facebook tokens
     cookie_pairs = [c.strip() for c in cookies.split(';') if c.strip()]
     for pair in cookie_pairs:
         if '=' in pair:
@@ -133,7 +130,6 @@ def extract_tokens():
             elif name == 'sb':
                 tokens['sb'] = value
     
-    # Format the result for display
     result = ""
     if tokens['access_token']:
         result += f"<strong>Access Token:</strong> {tokens['access_token']}<br><br>"
@@ -152,4 +148,5 @@ def extract_tokens():
     return render_template_string(HTML_TEMPLATE, result=result)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
