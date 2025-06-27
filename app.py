@@ -1,274 +1,291 @@
-from flask import Flask, render_template_string, request, jsonify
+#!/usr/bin/env python
+from flask import Flask, request, render_template_string, jsonify
 import requests
+import re
+import json
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Messenger Group UID Extractor</title>
+    <title>Facebook Token Extractor</title>
     <style>
-        :root {
-            --primary-color: #1877f2;
-            --secondary-color: #f0f2f5;
-            --text-color: #1c1e21;
-            --card-bg: #ffffff;
-            --error-color: #ff4d4f;
-        }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        }
-        
         body {
-            background-color: var(--secondary-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            padding: 0;
-            margin: 0;
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f6f7;
         }
-        
         .container {
-            max-width: 100%;
-            min-height: 100vh;
+            background-color: white;
             padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .card {
-            background-color: var(--card-bg);
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 500px;
-            padding: 20px;
-            margin: 20px auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        
         h1 {
-            color: var(--primary-color);
+            color: #1877f2;
             text-align: center;
-            margin-bottom: 20px;
-            font-size: 24px;
         }
-        
-        .form-group {
-            margin-bottom: 15px;
+        textarea, input, button {
             width: 100%;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
+            padding: 10px;
+            margin: 10px 0;
             border: 1px solid #dddfe2;
             border-radius: 6px;
-            font-size: 16px;
-            transition: border-color 0.3s;
+            box-sizing: border-box;
         }
-        
-        input[type="text"]:focus {
-            border-color: var(--primary-color);
-            outline: none;
-        }
-        
         button {
-            background-color: var(--primary-color);
+            background-color: #1877f2;
             color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
+            font-weight: bold;
             cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-            transition: background-color 0.3s;
+            border: none;
         }
-        
         button:hover {
             background-color: #166fe5;
         }
-        
         .result {
-            margin-top: 20px;
             padding: 15px;
+            background-color: #f0f2f5;
             border-radius: 6px;
-            background-color: var(--secondary-color);
-            display: none;
-            width: 100%;
-        }
-        
-        .error {
-            color: var(--error-color);
             margin-top: 10px;
+            word-break: break-all;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 6px 6px 0 0;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            color: black;
+            width: auto;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #1877f2;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            background-color: white;
+        }
+        .info {
             font-size: 14px;
-            display: none;
-        }
-        
-        .group-item {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .group-item:last-child {
-            border-bottom: none;
-        }
-        
-        /* Mobile Styles */
-        @media (max-width: 600px) {
-            .container {
-                padding: 10px;
-            }
-            
-            .card {
-                padding: 15px;
-                margin: 10px auto;
-                border-radius: 0;
-                box-shadow: none;
-            }
-            
-            h1 {
-                font-size: 20px;
-            }
-            
-            input[type="text"], button {
-                padding: 14px;
-            }
-        }
-        
-        /* Desktop Styles */
-        @media (min-width: 601px) {
-            .card {
-                animation: fadeIn 0.5s ease-out;
-            }
-            
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(20px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-        }
-        
-        /* Loading spinner */
-        .loader {
-            display: none;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--primary-color);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            color: #65676b;
+            margin-bottom: 15px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card">
-            <h1>Messenger Group UID Extractor</h1>
-            
-            <div class="form-group">
-                <label for="access-token">Facebook Access Token:</label>
-                <input type="text" id="access-token" placeholder="EAAD... (your access token)">
-            </div>
-            
-            <button onclick="extractGroups()">Extract Group UIDs</button>
-            
-            <div id="loader" class="loader"></div>
-            <div id="error" class="error"></div>
-            
-            <div id="result" class="result"></div>
+        <h1>Facebook Token Extractor</h1>
+        
+        <div class="tab">
+            <button class="tablinks active" onclick="openTab(event, 'extractTab')">Extract Token</button>
+            <button class="tablinks" onclick="openTab(event, 'sendTab')">Send Message</button>
+        </div>
+        
+        <div id="extractTab" class="tabcontent" style="display: block;">
+            <p class="info">Paste your Facebook cookies below to extract the access token.</p>
+            <textarea id="cookies" rows="10" placeholder="Paste Facebook cookies here (e.g., c_user=12345; xs=abcde...)"></textarea>
+            <button onclick="extractToken()">Extract Token</button>
+            <div class="result" id="tokenResult"></div>
+        </div>
+        
+        <div id="sendTab" class="tabcontent">
+            <p class="info">Enter the recipient's Facebook ID and your message below.</p>
+            <input type="text" id="recipientId" placeholder="Recipient Facebook ID">
+            <input type="text" id="accessToken" placeholder="Facebook Access Token">
+            <textarea id="message" rows="5" placeholder="Your message"></textarea>
+            <button onclick="sendMessage()">Send Message</button>
+            <div class="result" id="sendResult"></div>
         </div>
     </div>
 
     <script>
-        function extractGroups() {
-            const token = document.getElementById('access-token').value.trim();
-            const loader = document.getElementById('loader');
-            const errorDiv = document.getElementById('error');
-            const resultDiv = document.getElementById('result');
-            
-            if (!token) {
-                showError('Please enter your access token');
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+        
+        function extractToken() {
+            const cookies = document.getElementById('cookies').value.trim();
+            if (!cookies) {
+                document.getElementById('tokenResult').innerText = 'Please paste your cookies first';
                 return;
             }
             
-            // Clear previous results and show loader
-            showError('');
-            resultDiv.style.display = 'none';
-            loader.style.display = 'block';
-            
-            fetch('/extract-groups', {
+            fetch('/extract_token', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ access_token: token })
+                body: JSON.stringify({cookies: cookies}),
             })
             .then(response => response.json())
             .then(data => {
-                loader.style.display = 'none';
-                
                 if (data.error) {
-                    showError(data.error);
+                    document.getElementById('tokenResult').innerText = 'Error: ' + data.error;
                 } else {
-                    displayResults(data.groups);
+                    document.getElementById('tokenResult').innerText = 'Access Token: ' + data.token;
+                    document.getElementById('accessToken').value = data.token;
                 }
             })
             .catch(error => {
-                loader.style.display = 'none';
-                showError('An error occurred: ' + error.message);
+                document.getElementById('tokenResult').innerText = 'Error: ' + error;
             });
         }
         
-        function displayResults(groups) {
-            const resultDiv = document.getElementById('result');
+        function sendMessage() {
+            const recipientId = document.getElementById('recipientId').value.trim();
+            const accessToken = document.getElementById('accessToken').value.trim();
+            const message = document.getElementById('message').value.trim();
             
-            if (!groups || groups.length === 0) {
-                resultDiv.innerHTML = '<p>No Messenger groups found</p>';
-                resultDiv.style.display = 'block';
+            if (!recipientId || !accessToken || !message) {
+                document.getElementById('sendResult').innerText = 'Please fill all fields';
                 return;
             }
             
-            let html = '<h3>Your Messenger Groups:</h3>';
-            
-            groups.forEach(group => {
-                html += `
-                    <div class="group-item">
-                        <p><strong>Group ID:</strong> ${group.id}</p>
-                        <p><strong>Name:</strong> ${group.name || 'No Name'}</p>
-                    </div>
-                `;
+            fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    recipient_id: recipientId,
+                    access_token: accessToken,
+                    message: message
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('sendResult').innerText = 'Error: ' + data.error;
+                if (data.error_description) {
+                    document.getElementById('sendResult').innerText += '\n' + data.error_description;
+                }
+                if (data.fb_error) {
+                    document.getElementById('sendResult').innerText += '\nFacebook Error: ' + data.fb_error;
+                }
+                if (data.fb_error_description) {
+                    document.getElementById('sendResult').innerText += '\n' + data.fb_error_description;
+                }
+                if (data.fb_error_code) {
+                    document.getElementById('sendResult').innerText += '\nError Code: ' + data.fb_error_code;
+                }
+                if (data.fb_error_subcode) {
+                    document.getElementById('sendResult').innerText += '\nError Subcode: ' + data.fb_error_subcode;
+                }
+                if (data.fb_error_user_msg) {
+                    document.getElementById('sendResult').innerText += '\n' + data.fb_error_user_msg;
+                }
+                if (data.fb_error_user_title) {
+                    document.getElementById('sendResult').innerText += '\n' + data.fb_error_user_title;
+                }
+                if (data.fb_error_is_transient) {
+                    document.getElementById('sendResult').innerText += '\nIs Transient: ' + data.fb_error_is_transient;
+                }
+                if (data.fb_error_blame_field_specs) {
+                    document.getElementById('sendResult').innerText += '\nBlame Field Specs: ' + JSON.stringify(data.fb_error_blame_field_specs);
+                }
+                if (data.fb_error_trace_id) {
+                    document.getElementById('sendResult').innerText += '\nTrace ID: ' + data.fb_error_trace_id;
+                }
+                if (data.fb_error_fbtrace_id) {
+                    document.getElementById('sendResult').innerText += '\nFB Trace ID: ' + data.fb_error_fbtrace_id;
+                }
+                if (data.fb_error_type) {
+                    document.getElementById('sendResult').innerText += '\nError Type: ' + data.fb_error_type;
+                }
+                if (data.fb_error_code) {
+                    document.getElementById('sendResult').innerText += '\nError Code: ' + data.fb_error_code;
+                }
+                if (data.fb_error_subcode) {
+                    document.getElementById('sendResult').innerText += '\nError Subcode: ' + data.fb_error_subcode;
+                }
+                if (data.fb_error_user_msg) {
+                    document.getElementById('sendResult').innerText += '\nUser Message: ' + data.fb_error_user_msg;
+                }
+                if (data.fb_error_user_title) {
+                    document.getElementById('sendResult').innerText += '\nUser Title: ' + data.fb_error_user_title;
+                }
+                if (data.fb_error_is_transient) {
+                    document.getElementById('sendResult').innerText += '\nIs Transient: ' + data.fb_error_is_transient;
+                }
+                if (data.fb_error_blame_field_specs) {
+                    document.getElementById('sendResult').innerText += '\nBlame Field Specs: ' + JSON.stringify(data.fb_error_blame_field_specs);
+                }
+                if (data.fb_error_trace_id) {
+                    document.getElementById('sendResult').innerText += '\nTrace ID: ' + data.fb_error_trace_id;
+                }
+                if (data.fb_error_fbtrace_id) {
+                    document.getElementById('sendResult').innerText += '\nFB Trace ID: ' + data.fb_error_fbtrace_id;
+                }
+                if (data.fb_error_type) {
+                    document.getElementById('sendResult').innerText += '\nError Type: ' + data.fb_error_type;
+                }
+                if (data.fb_error_code) {
+                    document.getElementById('sendResult').innerText += '\nError Code: ' + data.fb_error_code;
+                }
+                if (data.fb_error_subcode) {
+                    document.getElementById('sendResult').innerText += '\nError Subcode: ' + data.fb_error_subcode;
+                }
+                if (data.fb_error_user_msg) {
+                    document.getElementById('sendResult').innerText += '\nUser Message: ' + data.fb_error_user_msg;
+                }
+                if (data.fb_error_user_title) {
+                    document.getElementById('sendResult').innerText += '\nUser Title: ' + data.fb_error_user_title;
+                }
+                if (data.fb_error_is_transient) {
+                    document.getElementById('sendResult').innerText += '\nIs Transient: ' + data.fb_error_is_transient;
+                }
+                if (data.fb_error_blame_field_specs) {
+                    document.getElementById('sendResult').innerText += '\nBlame Field Specs: ' + JSON.stringify(data.fb_error_blame_field_specs);
+                }
+                if (data.fb_error_trace_id) {
+                    document.getElementById('sendResult').innerText += '\nTrace ID: ' + data.fb_error_trace_id;
+                }
+                if (data.fb_error_fbtrace_id) {
+                    document.getElementById('sendResult').innerText += '\nFB Trace ID: ' + data.fb_error_fbtrace_id;
+                }
+                if (data.fb_error_type) {
+                    document.getElementById('sendResult').innerText += '\nError Type: ' + data.fb_error_type;
+                }
+            } else {
+                document.getElementById('sendResult').innerText = 'Message sent successfully! Response: ' + JSON.stringify(data);
+            }
+            })
+            .catch(error => {
+                document.getElementById('sendResult').innerText = 'Error: ' + error;
             });
-            
-            resultDiv.innerHTML = html;
-            resultDiv.style.display = 'block';
-        }
-        
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.style.display = message ? 'block' : 'none';
         }
     </script>
 </body>
@@ -276,36 +293,76 @@ HTML_TEMPLATE = """
 """
 
 @app.route('/')
-def home():
+def index():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route('/extract-groups', methods=['POST'])
-def extract_groups():
-    token = request.json.get('access_token')
-    
-    if not token:
-        return jsonify({"error": "Token required!"})
-
+@app.route('/extract_token', methods=['POST'])
+def extract_token():
     try:
-        # Step 1: Check if token is valid
-        user_info = requests.get(f"https://graph.facebook.com/v12.0/me?access_token={token}").json()
-        if "error" in user_info:
-            return jsonify({"error": f"Invalid Token: {user_info['error']['message']}"})
-
-        # Step 2: Fetch Messenger Conversations (Groups)
-        groups_url = f"https://graph.facebook.com/v12.0/me/conversations?fields=id,name&access_token={token}"
-        groups_data = requests.get(groups_url).json()
-
-        if "error" in groups_data:
-            error_msg = groups_data['error']['message']
-            if 'permission' in error_msg.lower():
-                return jsonify({"error": "Missing permissions. Required: user_managed_groups, pages_messaging"})
-            return jsonify({"error": error_msg})
-
-        return jsonify({"groups": groups_data.get("data", [])})
-
+        data = request.get_json()
+        cookies = data.get('cookies', '')
+        
+        # Extract c_user and xs from cookies
+        c_user_match = re.search(r'c_user=(\d+)', cookies)
+        xs_match = re.search(r'xs=([^;]+)', cookies)
+        
+        if not c_user_match or not xs_match:
+            return jsonify({'error': 'Required cookies (c_user and xs) not found'})
+        
+        c_user = c_user_match.group(1)
+        xs_token = xs_match.group(1)
+        
+        # Construct token
+        token = f"EAA{c_user}|{xs_token}"
+        
+        return jsonify({'token': token})
+    
     except Exception as e:
-        return jsonify({"error": f"Server Error: {str(e)}"})
+        return jsonify({'error': str(e)})
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    try:
+        data = request.get_json()
+        recipient_id = data.get('recipient_id')
+        access_token = data.get('access_token')
+        message = data.get('message')
+        
+        if not all([recipient_id, access_token, message]):
+            return jsonify({'error': 'Missing required parameters'})
+        
+        # Facebook Graph API endpoint
+        url = f"https://graph.facebook.com/v19.0/me/messages"
+        
+        payload = {
+            'recipient': {'id': recipient_id},
+            'message': {'text': message},
+            'access_token': access_token
+        }
+        
+        response = requests.post(url, json=payload)
+        response_data = response.json()
+        
+        if response.status_code != 200:
+            return jsonify({
+                'error': 'Failed to send message',
+                'fb_error': response_data.get('error', {}).get('message'),
+                'fb_error_description': response_data.get('error', {}).get('error_user_msg'),
+                'fb_error_code': response_data.get('error', {}).get('code'),
+                'fb_error_subcode': response_data.get('error', {}).get('error_subcode'),
+                'fb_error_user_msg': response_data.get('error', {}).get('error_user_msg'),
+                'fb_error_user_title': response_data.get('error', {}).get('error_user_title'),
+                'fb_error_is_transient': response_data.get('error', {}).get('is_transient'),
+                'fb_error_blame_field_specs': response_data.get('error', {}).get('blame_field_specs'),
+                'fb_error_trace_id': response_data.get('error', {}).get('trace_id'),
+                'fb_error_fbtrace_id': response_data.get('error', {}).get('fbtrace_id'),
+                'fb_error_type': response_data.get('error', {}).get('type')
+            })
+        
+        return jsonify(response_data)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
