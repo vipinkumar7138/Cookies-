@@ -4,144 +4,216 @@ import os
 
 app = Flask(__name__)
 
-# HTML Template with CSS, JavaScript, and Form for Facebook API
+# HTML Template (same as your file with minor improvements)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facebook Data Fetcher</title>
+    <title>Facebook UID Extractor</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            background-color: #222;
+            color: #fff;
+            margin: 0;
             padding: 20px;
-            background-color: #f5f5f5;
-        }
-        h1 {
-            color: #1877f2; /* Facebook Blue */
-            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 0 15px  cyan;
+            overflow-y: auto;
+            position: relative;
         }
         .container {
-            background-color: white;
+            max-width: 600px;
+            margin: auto;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: #333;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 0 15px cyan;
         }
-        input[type="text"] {
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .form-group input {
             width: 100%;
             padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
+            border: 1px solid #ccc;
             border-radius: 4px;
-        }
-        button {
-            background-color: #1877f2;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
             font-size: 16px;
         }
-        button:hover {
-            background-color: #166fe5;
-        }
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #ddd;
+        .form-group button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
             border-radius: 4px;
-            background-color: #f9f9f9;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #444;
+            border-radius: 5px;
+            box-shadow: 0 0 15px cyan;
+        }
+        .item strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .copy-btn {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
         }
         .error {
             color: red;
-        }
-        .chat, .post {
-            margin: 10px 0;
             padding: 10px;
-            border-bottom: 1px solid #eee;
+            background: #300;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Facebook Data Fetcher</h1>
-        
-        <div>
-            <h2>Get Messenger Chats</h2>
-            <input type="text" id="chatToken" placeholder="Enter Facebook Access Token">
-            <button onclick="fetchChats()">Fetch Chats</button>
-            <div id="chatResult" class="result"></div>
+        <h1 class="mb-3" style="color: cyan;">VARUN DHAWAL                     
+        </h1>
+        <h1>ᴀᴄᴄᴇꜱꜱ ᴄʜᴀᴛ ᴀɴᴅ ᴘᴏꜱᴛ ᴜɪᴅ</h1>
+        <div class="form-group">
+            <label for="access_token">ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ : </label>
+            <input type="text" id="access_token" placeholder="ᴇɴʏᴇʀ ʏᴏᴜʀ ꜰᴀᴄᴇʙᴏᴏᴋ ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ ">
         </div>
-        
-        <div>
-            <h2>Get Facebook Posts</h2>
-            <input type="text" id="postToken" placeholder="Enter Facebook Access Token">
-            <button onclick="fetchPosts()">Fetch Posts</button>
-            <div id="postResult" class="result"></div>
+        <div class="form-group">
+            <button onclick="fetchMessengerChats()">ɢᴇᴛ ᴄʜᴀᴛꜱ</button>
         </div>
+        <div class="form-group">
+            <button onclick="fetchPosts()">ɢᴇᴛ ᴘᴏꜱᴛꜱ</button>
+        </div>
+        <div id="results" class="results"></div>
     </div>
 
     <script>
-        async function fetchChats() {
-            const token = document.getElementById('chatToken').value;
-            const resultDiv = document.getElementById('chatResult');
-            resultDiv.innerHTML = 'Loading...';
-            
-            try {
-                const response = await fetch('/get_messenger_chats', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ access_token: token })
-                });
-                const data = await response.json();
-                
-                if (data.error) {
-                    resultDiv.innerHTML = `<div class="error">Error: ${data.error.message || data.error}</div>`;
-                } else {
-                    let html = '<h3>Your Chats:</h3>';
-                    data.chats.forEach(chat => {
-                        html += `<div class="chat"><strong>${chat.name}</strong> (ID: ${chat.id})</div>`;
-                    });
-                    resultDiv.innerHTML = html;
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-            }
+        function showError(message) {
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = `<div class="error">${message}</div>`;
         }
-        
-        async function fetchPosts() {
-            const token = document.getElementById('postToken').value;
-            const resultDiv = document.getElementById('postResult');
-            resultDiv.innerHTML = 'Loading...';
-            
-            try {
-                const response = await fetch('/get_posts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ access_token: token })
-                });
-                const data = await response.json();
+
+        function fetchMessengerChats() {
+            const accessToken = document.getElementById("access_token").value.trim();
+            if (!accessToken) {
+                showError("Please enter correct token");
+                return;
+            }
+
+            fetch('/get_messenger_chats', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ access_token: accessToken })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const resultsDiv = document.getElementById("results");
+                resultsDiv.innerHTML = '';
                 
                 if (data.error) {
-                    resultDiv.innerHTML = `<div class="error">Error: ${data.error.message || data.error}</div>`;
+                    showError(`त्रुटि: ${data.error.message || data.error}`);
                 } else {
-                    let html = '<h3>Your Posts:</h3>';
-                    data.posts.forEach(post => {
-                        html += `
-                            <div class="post">
-                                <strong>${post.profile_name}</strong>: 
-                                ${post.name || "No text content"} (ID: ${post.id})
-                            </div>`;
+                    data.chats.forEach(chat => {
+                        const chatDiv = document.createElement("div");
+                        chatDiv.className = "item";
+                        chatDiv.innerHTML = `
+                            <strong>ᴄʜᴀᴛ ɴᴀᴍᴇ : </strong> ${chat.name}<br>
+                            <strong>ᴄʜᴀᴛ ᴜɪᴅ : </strong> ${chat.id}<br>
+                            <button class="copy-btn" onclick="copyToClipboard('${chat.id}')">ᴄᴏᴘʏ ᴄʜᴀᴛ ᴜɪᴅ</button>
+                        `;
+                        resultsDiv.appendChild(chatDiv);
                     });
-                    resultDiv.innerHTML = html;
                 }
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            })
+            .catch(error => {
+                showError(`त्रुटि: ${error.message}`);
+                console.error('Error:', error);
+            });
+        }
+
+        function fetchPosts() {
+            const accessToken = document.getElementById("access_token").value.trim();
+            if (!accessToken) {
+                showError("Please enter correct token");
+                return;
             }
+
+            fetch('/get_posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ access_token: accessToken })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const resultsDiv = document.getElementById("results");
+                resultsDiv.innerHTML = '';
+                
+                if (data.error) {
+                    showError(`त्रुटि: ${data.error.message || data.error}`);
+                } else {
+                    data.posts.forEach(post => {
+                        const postDiv = document.createElement("div");
+                        postDiv.className = "item";
+                        postDiv.innerHTML = `
+                            <strong>ᴘᴏꜱᴛ ɴᴀᴍᴇ :  </strong> ${post.name || 'Unnamed Post'}<br>
+                            <strong>ᴘᴏꜱᴛ ᴜɪᴅ :</strong> ${post.id}<br>
+                            <strong>ᴘʀᴏꜰɪʟᴇ ɴᴀᴍᴇ : </strong> ${post.profile_name}<br>
+                            <button class="copy-btn" onclick="copyToClipboard('${post.id}')">ᴄᴏᴘʏ ᴘᴏꜱᴛ ᴜɪᴅ</button>
+                        `;
+                        resultsDiv.appendChild(postDiv);
+                    });
+                }
+            })
+            .catch(error => {
+                showError(`त्रुटि: ${error.message}`);
+                console.error('Error:', error);
+            });
+        }
+
+        function copyToClipboard(uid) {
+            navigator.clipboard.writeText(uid).then(() => {
+                alert("UID copied to clipboard!");
+            });
         }
     </script>
 </body>
