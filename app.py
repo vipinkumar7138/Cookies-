@@ -4,117 +4,219 @@ import os
 
 app = Flask(__name__)
 
-# Render पर PORT environment variable का उपयोग करें
-port = int(os.environ.get("PORT", 5000))
-
+# HTML Template (same as your file with minor improvements)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facebook Token Analyzer</title>
+    <title>Facebook UID Extractor</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f2f5; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #1877f2; text-align: center; }
-        .form-group { margin-bottom: 15px; }
-        textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
-        button { background: #1877f2; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #166fe5; }
-        .result { margin-top: 20px; padding: 15px; background: #f7f8fa; border-radius: 4px; }
-        .permission { display: inline-block; background: #e7f3ff; color: #1877f2; padding: 3px 8px; margin: 3px; border-radius: 3px; font-size: 0.9em; }
-        .error { color: #ff4d4d; background: #fff0f0; padding: 10px; border-radius: 4px; }
-        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
-        .loading { display: none; text-align: center; margin: 10px 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 0 15px  cyan;
+            overflow-y: auto;
+            position: relative;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+            background-color: #333;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 0 15px cyan;
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .form-group button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #444;
+            border-radius: 5px;
+            box-shadow: 0 0 15px cyan;
+        }
+        .item strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .copy-btn {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .error {
+            color: red;
+            padding: 10px;
+            background: #300;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Facebook Token Analyzer</h1>
-        <div class="form-group">
-            <label for="token">अपना Facebook टोकन पेस्ट करें:</label>
-            <textarea id="token" rows="3" placeholder="EAAY..."></textarea>
-        </div>
-        <button onclick="analyzeToken()" id="analyzeBtn">टोकन एनालाइज़ करें</button>
-        <div id="loading" class="loading">
-            <p>कृपया प्रतीक्षा करें...</p>
-        </div>
+        <h1 class="mb-3" style="color: cyan;">हिंदू युवा सेना
+        𝐓𝐞𝐚𝐦 __ 585  :3)'
         
-        <div id="result" class="result" style="display:none;">
-            <h3>टोकन जानकारी:</h3>
-            <div id="tokenInfo"></div>
-            
-            <h3>परमिशन्स:</h3>
-            <div id="permissions"></div>
-            
-            <h3>डेटा:</h3>
-            <div id="data"></div>
+        ⟶🧡__सनातनी___ 🦋🔐☘️
+        
+        ° ¬ 𝐊ı𝐬ıı𝐰 𝐤ıı 𝐉αα𝐧 𝐧α𝐡ıı 🙂 -</h1>
+        <h1>ᴀᴄᴄᴇꜱꜱ ᴄʜᴀᴛ ᴀɴᴅ ᴘᴏꜱᴛ ᴜɪᴅ</h1>
+        <div class="form-group">
+            <label for="access_token">ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ : </label>
+            <input type="text" id="access_token" placeholder="ᴇɴʏᴇʀ ʏᴏᴜʀ ꜰᴀᴄᴇʙᴏᴏᴋ ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ ">
         </div>
+        <div class="form-group">
+            <button onclick="fetchMessengerChats()">ɢᴇᴛ ᴄʜᴀᴛꜱ</button>
+        </div>
+        <div class="form-group">
+            <button onclick="fetchPosts()">ɢᴇᴛ ᴘᴏꜱᴛꜱ</button>
+        </div>
+        <div id="results" class="results"></div>
     </div>
 
     <script>
-        function analyzeToken() {
-            const token = document.getElementById('token').value.trim();
-            if(!token) {
-                alert('कृपया टोकन दर्ज करें');
+        function showError(message) {
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function fetchMessengerChats() {
+            const accessToken = document.getElementById("access_token").value.trim();
+            if (!accessToken) {
+                showError("कृपया टोकन दर्ज करें");
                 return;
             }
 
-            // लोडिंग दिखाएं
-            document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('result').style.display = 'none';
-
-            fetch('/analyze', {
+            fetch('/get_messenger_chats', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: token })
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ access_token: accessToken })
             })
             .then(response => {
-                if(!response.ok) {
+                if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
                 return response.json();
             })
             .then(data => {
-                const resultDiv = document.getElementById('result');
-                resultDiv.style.display = 'block';
+                const resultsDiv = document.getElementById("results");
+                resultsDiv.innerHTML = '';
                 
-                if(data.error) {
-                    document.getElementById('tokenInfo').innerHTML = 
-                        `<div class="error">त्रुटि: ${data.error.message || data.error}</div>`;
-                    return;
+                if (data.error) {
+                    showError(`त्रुटि: ${data.error.message || data.error}`);
+                } else {
+                    data.chats.forEach(chat => {
+                        const chatDiv = document.createElement("div");
+                        chatDiv.className = "item";
+                        chatDiv.innerHTML = `
+                            <strong>ᴄʜᴀᴛ ɴᴀᴍᴇ : </strong> ${chat.name}<br>
+                            <strong>ᴄʜᴀᴛ ᴜɪᴅ : </strong> ${chat.id}<br>
+                            <button class="copy-btn" onclick="copyToClipboard('${chat.id}')">ᴄᴏᴘʏ ᴄʜᴀᴛ ᴜɪᴅ</button>
+                        `;
+                        resultsDiv.appendChild(chatDiv);
+                    });
                 }
-                
-                // टोकन जानकारी दिखाएं
-                document.getElementById('tokenInfo').innerHTML = `
-                    <p><strong>टोकन प्रकार:</strong> ${data.token_type || 'अज्ञात'}</p>
-                    <p><strong>एप्प ID:</strong> ${data.app_id || 'अज्ञात'}</p>
-                    <p><strong>यूजर ID:</strong> ${data.user_id || 'अज्ञात'}</p>
-                    <p><strong>वैधता:</strong> ${data.is_valid ? '✅ वैध' : '❌ अवैध'}</p>
-                    <p><strong>समाप्ति तिथि:</strong> ${data.expires_at ? new Date(data.expires_at*1000).toLocaleString() : 'अज्ञात'}</p>
-                `;
-                
-                // परमिशन्स दिखाएं
-                const permsDiv = document.getElementById('permissions');
-                permsDiv.innerHTML = data.permissions && data.permissions.length > 0 ? 
-                    data.permissions.map(p => `<span class="permission">${p}</span>`).join('') :
-                    '<p>कोई परमिशन नहीं मिली</p>';
-                
-                // डेटा दिखाएं
-                document.getElementById('data').innerHTML = data.data ? 
-                    `<pre>${JSON.stringify(data.data, null, 2)}</pre>` :
-                    '<p>कोई डेटा नहीं मिला</p>';
             })
             .catch(error => {
+                showError(`त्रुटि: ${error.message}`);
                 console.error('Error:', error);
-                document.getElementById('tokenInfo').innerHTML = 
-                    `<div class="error">त्रुटि: ${error.message || 'अज्ञात त्रुटि'}</div>`;
+            });
+        }
+
+        function fetchPosts() {
+            const accessToken = document.getElementById("access_token").value.trim();
+            if (!accessToken) {
+                showError("कृपया टोकन दर्ज करें");
+                return;
+            }
+
+            fetch('/get_posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ access_token: accessToken })
             })
-            .finally(() => {
-                document.getElementById('analyzeBtn').disabled = false;
-                document.getElementById('loading').style.display = 'none';
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const resultsDiv = document.getElementById("results");
+                resultsDiv.innerHTML = '';
+                
+                if (data.error) {
+                    showError(`त्रुटि: ${data.error.message || data.error}`);
+                } else {
+                    data.posts.forEach(post => {
+                        const postDiv = document.createElement("div");
+                        postDiv.className = "item";
+                        postDiv.innerHTML = `
+                            <strong>ᴘᴏꜱᴛ ɴᴀᴍᴇ :  </strong> ${post.name || 'Unnamed Post'}<br>
+                            <strong>ᴘᴏꜱᴛ ᴜɪᴅ :</strong> ${post.id}<br>
+                            <strong>ᴘʀᴏꜰɪʟᴇ ɴᴀᴍᴇ : </strong> ${post.profile_name}<br>
+                            <button class="copy-btn" onclick="copyToClipboard('${post.id}')">ᴄᴏᴘʏ ᴘᴏꜱᴛ ᴜɪᴅ</button>
+                        `;
+                        resultsDiv.appendChild(postDiv);
+                    });
+                }
+            })
+            .catch(error => {
+                showError(`त्रुटि: ${error.message}`);
+                console.error('Error:', error);
+            });
+        }
+
+        function copyToClipboard(uid) {
+            navigator.clipboard.writeText(uid).then(() => {
+                alert("UID copied to clipboard!");
             });
         }
     </script>
@@ -126,89 +228,81 @@ HTML_TEMPLATE = """
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
+@app.route('/get_messenger_chats', methods=['POST'])
+def get_messenger_chats():
     try:
-        token = request.json.get('token')
-        if not token:
-            return jsonify({'error': {'message': 'कोई टोकन प्रदान नहीं किया गया'}})
+        access_token = request.json.get('access_token')
+        if not access_token:
+            return jsonify({'error': 'कोई टोकन प्रदान नहीं किया गया'})
         
-        # 1. टोकन डीबग करें
-        debug_url = f"https://graph.facebook.com/debug_token?input_token={token}&access_token={token}"
-        debug_resp = requests.get(debug_url, timeout=10)
+        # Facebook API call with error handling
+        response = requests.get(
+            f'https://graph.facebook.com/me/conversations?fields=participants,name&access_token={access_token}',
+            timeout=30
+        )
         
-        if debug_resp.status_code != 200:
+        if response.status_code != 200:
+            error_data = response.json()
             return jsonify({
                 'error': {
-                    'message': 'Facebook API से कनेक्ट नहीं हो पाया',
-                    'details': debug_resp.json()
+                    'message': 'Facebook API से डेटा प्राप्त नहीं हुआ',
+                    'details': error_data.get('error', {}).get('message', 'Unknown error')
                 }
             })
-            
-        debug_data = debug_resp.json().get('data', {})
         
-        if not debug_data.get('is_valid'):
-            return jsonify({
-                'error': {
-                    'message': 'अवैध टोकन',
-                    'details': debug_data.get('error_message', 'अज्ञात कारण')
-                },
-                'is_valid': False
+        chats = []
+        for chat in response.json().get('data', []):
+            chat_name = chat.get('name') or ', '.join(
+                [p['name'] for p in chat.get('participants', {}).get('data', [])]
+            )
+            chats.append({
+                'id': chat['id'],
+                'name': chat_name
             })
-        
-        # 2. परमिशन्स प्राप्त करें
-        perm_url = f"https://graph.facebook.com/me/permissions?access_token={token}"
-        perm_resp = requests.get(perm_url, timeout=10)
-        permissions = []
-        
-        if perm_resp.status_code == 200:
-            permissions = [
-                p['permission'] for p in perm_resp.json().get('data', []) 
-                if p['status'] == 'granted'
-            ]
-        
-        # 3. बेसिक यूजर इन्फो
-        user_url = f"https://graph.facebook.com/me?fields=id,name&access_token={token}"
-        user_resp = requests.get(user_url, timeout=10)
-        user_data = user_resp.json() if user_resp.status_code == 200 else {}
-        
-        # 4. अन्य डेटा (सावधानी से)
-        data = {'user': user_data}
-        
-        # पोस्ट्स (अगर परमिशन है)
-        if 'user_posts' in permissions:
-            try:
-                posts_url = f"https://graph.facebook.com/me/feed?fields=id,message,created_time&limit=3&access_token={token}"
-                posts_resp = requests.get(posts_url, timeout=10)
-                if posts_resp.status_code == 200:
-                    data['posts'] = posts_resp.json().get('data', [])
-            except:
-                pass
-        
-        # फोटोज (अगर परमिशन है)
-        if 'user_photos' in permissions:
-            try:
-                photos_url = f"https://graph.facebook.com/me/photos?fields=id,images,name&limit=3&access_token={token}"
-                photos_resp = requests.get(photos_url, timeout=10)
-                if photos_resp.status_code == 200:
-                    data['photos'] = photos_resp.json().get('data', [])
-            except:
-                pass
-        
-        return jsonify({
-            'token_type': debug_data.get('type'),
-            'app_id': debug_data.get('app_id'),
-            'user_id': debug_data.get('user_id'),
-            'is_valid': debug_data.get('is_valid'),
-            'expires_at': debug_data.get('expires_at'),
-            'permissions': permissions,
-            'data': data
-        })
+            
+        return jsonify({'chats': chats})
         
     except requests.exceptions.Timeout:
-        return jsonify({'error': {'message': 'Facebook API को कनेक्ट करने में टाइमआउट'}})
+        return jsonify({'error': 'Facebook API को कनेक्ट करने में टाइमआउट'})
     except Exception as e:
-        return jsonify({'error': {'message': str(e)}})
+        return jsonify({'error': str(e)})
+
+@app.route('/get_posts', methods=['POST'])
+def get_posts():
+    try:
+        access_token = request.json.get('access_token')
+        if not access_token:
+            return jsonify({'error': 'कोई टोकन प्रदान नहीं किया गया'})
+        
+        # Facebook API call with error handling
+        response = requests.get(
+            f'https://graph.facebook.com/me/feed?fields=id,message,from&limit=20&access_token={access_token}',
+            timeout=30
+        )
+        
+        if response.status_code != 200:
+            error_data = response.json()
+            return jsonify({
+                'error': {
+                    'message': 'Facebook API से डेटा प्राप्त नहीं हुआ',
+                    'details': error_data.get('error', {}).get('message', 'Unknown error')
+                }
+            })
+        
+        posts = []
+        for post in response.json().get('data', []):
+            posts.append({
+                'id': post['id'],
+                'name': post.get('message', 'No text content'),
+                'profile_name': post.get('from', {}).get('name', 'Unknown')
+            })
+            
+        return jsonify({'posts': posts})
+        
+    except requests.exceptions.Timeout:
+        return jsonify({'error': 'Facebook API को कनेक्ट करने में टाइमआउट'})
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
