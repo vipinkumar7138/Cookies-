@@ -4,7 +4,7 @@ import os
 
 app = Flask(__name__)
 
-# HTML Template (same as your file with minor improvements)
+# VIP PINK THEME (Text: White | BG: Black | Buttons: Blue)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -15,27 +15,23 @@ HTML_TEMPLATE = """
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #222;
-            color: #fff;
+            background-color: #000000; /* Pure Black */
+            color: #ffffff; /* White Text */
             margin: 0;
             padding: 20px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-            box-shadow: 0 0 15px  cyan;
-            overflow-y: auto;
-            position: relative;
         }
         .container {
             max-width: 600px;
             margin: auto;
             padding: 20px;
-            background-color: #333;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            background-color: #33001a; /* Dark Pink */
             border-radius: 10px;
-            box-shadow: 0 0 15px cyan;
+            box-shadow: 0 0 20px #ff0099; /* Pink Glow */
         }
         h1 {
-            color: #4CAF50;
+            color: #ff0099; /* Bright Pink */
             text-align: center;
+            text-shadow: 0 0 10px rgba(255, 0, 153, 0.5);
         }
         .form-group {
             margin-bottom: 20px;
@@ -44,23 +40,32 @@ HTML_TEMPLATE = """
             display: block;
             font-weight: bold;
             margin-bottom: 8px;
+            color: #ffffff;
         }
         .form-group input {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid #ff0099;
             border-radius: 4px;
             font-size: 16px;
+            background: #111;
+            color: white;
         }
         .form-group button {
             width: 100%;
             padding: 10px;
-            background-color: #4CAF50;
+            background-color: #3366ff; /* Royal Blue */
             color: #fff;
             border: none;
             border-radius: 4px;
             font-size: 16px;
             cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .form-group button:hover {
+            background: #0044ff; /* Darker Blue on Hover */
+            transform: scale(1.02);
         }
         .results {
             margin-top: 20px;
@@ -68,17 +73,18 @@ HTML_TEMPLATE = """
         .item {
             margin-bottom: 20px;
             padding: 15px;
-            background-color: #444;
+            background-color: #1a001a;
             border-radius: 5px;
-            box-shadow: 0 0 15px cyan;
+            border-left: 3px solid #ff0099;
         }
         .item strong {
             display: block;
             font-size: 14px;
             margin-bottom: 5px;
+            color: #ff99cc; /* Light Pink */
         }
         .copy-btn {
-            background-color: #007BFF;
+            background-color: #3366ff;
             color: white;
             border: none;
             border-radius: 4px;
@@ -88,17 +94,17 @@ HTML_TEMPLATE = """
             margin-top: 10px;
         }
         .error {
-            color: red;
+            color: #ff3333;
             padding: 10px;
-            background: #300;
+            background: #330000;
             border-radius: 4px;
+            border: 1px solid #ff0066;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="mb-3" style="color: cyan;">VARUN DHAWAL'                     
-        </h1>
+        <h1 class="mb-3" style="color: #ff0099;">VARUN DHAWAL</h1>
         <h1>ᴀᴄᴄᴇꜱꜱ ᴄʜᴀᴛ ᴀɴᴅ ᴘᴏꜱᴛ ᴜɪᴅ</h1>
         <div class="form-group">
             <label for="access_token">ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ : </label>
@@ -113,6 +119,7 @@ HTML_TEMPLATE = """
         <div id="results" class="results"></div>
     </div>
 
+    <!-- Rest of your JavaScript remains the same -->
     <script>
         function showError(message) {
             const resultsDiv = document.getElementById("results");
@@ -220,6 +227,7 @@ HTML_TEMPLATE = """
 </html>
 """
 
+# REST OF YOUR FLASK CODE REMAINS THE SAME
 @app.route('/')
 def home():
     return render_template_string(HTML_TEMPLATE)
@@ -231,7 +239,6 @@ def get_messenger_chats():
         if not access_token:
             return jsonify({'error': 'No provided token'})
         
-        # Facebook API call with error handling
         response = requests.get(
             f'https://graph.facebook.com/me/conversations?fields=participants,name&access_token={access_token}',
             timeout=30
@@ -249,7 +256,7 @@ def get_messenger_chats():
         chats = []
         for chat in response.json().get('data', []):
             chat_name = chat.get('name') or ', '.join(
-                [p['name'] for p in chat.get('participants', {}).get('data', [])]
+                [p['name'] for p in chat.get('participants', {}).get('data', [])
             )
             chats.append({
                 'id': chat['id'],
@@ -270,7 +277,6 @@ def get_posts():
         if not access_token:
             return jsonify({'error': 'Please enter the token'})
         
-        # Facebook API call with error handling
         response = requests.get(
             f'https://graph.facebook.com/me/feed?fields=id,message,from&limit=20&access_token={access_token}',
             timeout=30
