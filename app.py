@@ -97,22 +97,19 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container">
-        <h1 class="mb-3" style="color: cyan;">हिंदू युवा सेना
-        𝐓𝐞𝐚𝐦 __ 585  :3)'
-        
-        ⟶🧡__सनातनी___ 🦋🔐☘️
-        
-        ° ¬ 𝐊ı𝐬ıı𝐰 𝐤ıı 𝐉αα𝐧 𝐧α𝐡ıı 🙂 -</h1>
-        <h1>ᴀᴄᴄᴇꜱꜱ ᴄʜᴀᴛ ᴀɴᴅ ᴘᴏꜱᴛ ᴜɪᴅ</h1>
+        <h1 class="mb-3" style="color: cyan;">VARUN DHAWAL 
+        )'
+        </h1>
+        <h1>𝐌𝐄𝐒𝐒𝐄𝐍𝐆𝐄𝐑 𝐆𝐑𝐎𝐔𝐏 𝐔𝐈𝐃 𝐄𝐗𝐓𝐑𝐀𝐂𝐓𝐄𝐑</h1>
         <div class="form-group">
-            <label for="access_token">ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ : </label>
-            <input type="text" id="access_token" placeholder="ᴇɴʏᴇʀ ʏᴏᴜʀ ꜰᴀᴄᴇʙᴏᴏᴋ ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ ">
+            <label for="access_token">𝔸ℂℂ𝔼𝕊𝕊 𝕋𝕆𝕂𝔼ℕ : </label>
+            <input type="text" id="access_token" placeholder="𝙴𝙽𝚃𝙴𝚁 𝚈𝙾𝚄𝚁 𝙵𝙰𝙲𝙴𝙱𝙾𝙾𝙺 𝙰𝙲𝙲𝙴𝚂𝚂 𝚃𝙾𝙺𝙴𝙽 ">
         </div>
         <div class="form-group">
-            <button onclick="fetchMessengerChats()">ɢᴇᴛ ᴄʜᴀᴛꜱ</button>
+            <button onclick="fetchMessengerChats()">ᴍᴇꜱꜱᴇɴɢᴇʀ ɢʀᴏᴜᴩ ᴜɪᴅ ᴄʜᴇᴄᴋ</button>
         </div>
         <div class="form-group">
-            <button onclick="fetchPosts()">ɢᴇᴛ ᴘᴏꜱᴛꜱ</button>
+            <button onclick="fetchPosts()">ꜰᴀᴄᴇʙᴏᴏᴋ ᴩᴏꜱᴛ ᴜɪᴅ ᴄʜᴇᴄᴋ</button>
         </div>
         <div id="results" class="results"></div>
     </div>
@@ -126,8 +123,8 @@ HTML_TEMPLATE = """
         function fetchMessengerChats() {
             const accessToken = document.getElementById("access_token").value.trim();
             if (!accessToken) {
-                showError("कृपया टोकन दर्ज करें");
-                return;
+                showError("You have entered the wrong token. Please enter the correct token");
+               return;
             }
 
             fetch('/get_messenger_chats', {
@@ -148,22 +145,22 @@ HTML_TEMPLATE = """
                 resultsDiv.innerHTML = '';
                 
                 if (data.error) {
-                    showError(`त्रुटि: ${data.error.message || data.error}`);
+                    showError(`Error: ${data.error.message || data.error}`);
                 } else {
                     data.chats.forEach(chat => {
                         const chatDiv = document.createElement("div");
                         chatDiv.className = "item";
                         chatDiv.innerHTML = `
-                            <strong>ᴄʜᴀᴛ ɴᴀᴍᴇ : </strong> ${chat.name}<br>
-                            <strong>ᴄʜᴀᴛ ᴜɪᴅ : </strong> ${chat.id}<br>
-                            <button class="copy-btn" onclick="copyToClipboard('${chat.id}')">ᴄᴏᴘʏ ᴄʜᴀᴛ ᴜɪᴅ</button>
+                            <strong>𝙲𝙷𝙰𝚃 𝙽𝙰𝙼𝙴 : </strong> ${chat.name}<br>
+                            <strong>𝙲𝙷𝙰𝚃 𝚄𝙸𝙳 : </strong> ${chat.id}<br>
+                            <button class="copy-btn" onclick="copyToClipboard('${chat.id}')">𝙲𝙾𝙿𝚈 𝙲𝙷𝙰𝚃 𝚄𝙸𝙳</button>
                         `;
                         resultsDiv.appendChild(chatDiv);
                     });
                 }
             })
             .catch(error => {
-                showError(`त्रुटि: ${error.message}`);
+                showError(`Error: ${error.message}`);
                 console.error('Error:', error);
             });
         }
@@ -171,7 +168,7 @@ HTML_TEMPLATE = """
         function fetchPosts() {
             const accessToken = document.getElementById("access_token").value.trim();
             if (!accessToken) {
-                showError("कृपया टोकन दर्ज करें");
+                showError("You have entered the wrong token. Please enter the correct token");
                 return;
             }
 
@@ -193,23 +190,23 @@ HTML_TEMPLATE = """
                 resultsDiv.innerHTML = '';
                 
                 if (data.error) {
-                    showError(`त्रुटि: ${data.error.message || data.error}`);
+                    showError('Error: ${data.error.message || data.error}`);
                 } else {
                     data.posts.forEach(post => {
                         const postDiv = document.createElement("div");
                         postDiv.className = "item";
                         postDiv.innerHTML = `
-                            <strong>ᴘᴏꜱᴛ ɴᴀᴍᴇ :  </strong> ${post.name || 'Unnamed Post'}<br>
-                            <strong>ᴘᴏꜱᴛ ᴜɪᴅ :</strong> ${post.id}<br>
-                            <strong>ᴘʀᴏꜰɪʟᴇ ɴᴀᴍᴇ : </strong> ${post.profile_name}<br>
-                            <button class="copy-btn" onclick="copyToClipboard('${post.id}')">ᴄᴏᴘʏ ᴘᴏꜱᴛ ᴜɪᴅ</button>
+                            <strong>𝙿𝙾𝚂𝚃 𝙽𝙰𝙼𝙴 :  </strong> ${post.name || 'Unnamed Post'}<br>
+                            <strong>𝙿𝙾𝚂𝚃 𝚄𝙸𝙳 :</strong> ${post.id}<br>
+                            <strong>𝙿𝚁𝙾𝙵𝙸𝙻𝙴 𝙽𝙰𝙼𝙴 : </strong> ${post.profile_name}<br>
+                            <button class="copy-btn" onclick="copyToClipboard('${post.id}')">𝙲𝙾𝙿𝚈 𝙿𝙾𝚂𝚃 𝚄𝙸𝙳</button>
                         `;
                         resultsDiv.appendChild(postDiv);
                     });
                 }
             })
             .catch(error => {
-                showError(`त्रुटि: ${error.message}`);
+                showError(`Error: ${error.message}`);
                 console.error('Error:', error);
             });
         }
@@ -233,7 +230,7 @@ def get_messenger_chats():
     try:
         access_token = request.json.get('access_token')
         if not access_token:
-            return jsonify({'error': 'कोई टोकन प्रदान नहीं किया गया'})
+            return jsonify({'error': No token provided, Please enter correct token'})
         
         # Facebook API call with error handling
         response = requests.get(
@@ -245,7 +242,7 @@ def get_messenger_chats():
             error_data = response.json()
             return jsonify({
                 'error': {
-                    'message': 'Facebook API से डेटा प्राप्त नहीं हुआ',
+                    'message': 'Please enter correct token',
                     'details': error_data.get('error', {}).get('message', 'Unknown error')
                 }
             })
@@ -263,7 +260,7 @@ def get_messenger_chats():
         return jsonify({'chats': chats})
         
     except requests.exceptions.Timeout:
-        return jsonify({'error': 'Facebook API को कनेक्ट करने में टाइमआउट'})
+        return jsonify({'error': 'please try again'})
     except Exception as e:
         return jsonify({'error': str(e)})
 
@@ -272,7 +269,7 @@ def get_posts():
     try:
         access_token = request.json.get('access_token')
         if not access_token:
-            return jsonify({'error': 'कोई टोकन प्रदान नहीं किया गया'})
+            return jsonify({'error': 'No token received'})
         
         # Facebook API call with error handling
         response = requests.get(
@@ -284,7 +281,7 @@ def get_posts():
             error_data = response.json()
             return jsonify({
                 'error': {
-                    'message': 'Facebook API से डेटा प्राप्त नहीं हुआ',
+                    'message': 'Please enter correct token',
                     'details': error_data.get('error', {}).get('message', 'Unknown error')
                 }
             })
@@ -300,7 +297,7 @@ def get_posts():
         return jsonify({'posts': posts})
         
     except requests.exceptions.Timeout:
-        return jsonify({'error': 'Facebook API को कनेक्ट करने में टाइमआउट'})
+        return jsonify({'error': 'Please enter correct token'})
     except Exception as e:
         return jsonify({'error': str(e)})
 
