@@ -4,230 +4,150 @@ import os
 
 app = Flask(__name__)
 
-# VIP PINK THEME (Text: White | BG: Black | Buttons: Blue)
+# HTML Template with CSS, JavaScript, and Form for Facebook API
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facebook UID Extractor</title>
+    <title>Facebook Data Fetcher</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #000000; /* Pure Black */
-            color: #ffffff; /* White Text */
-            margin: 0;
+            max-width: 800px;
+            margin: 0 auto;
             padding: 20px;
-        }
-        .container {
-            max-width: 600px;
-            margin: auto;
-            padding: 20px;
-            background-color: #33001a; /* Dark Pink */
-            border-radius: 10px;
-            box-shadow: 0 0 20px #ff0099; /* Pink Glow */
+            background-color: #f5f5f5;
         }
         h1 {
-            color: #ff0099; /* Bright Pink */
+            color: #1877f2; /* Facebook Blue */
             text-align: center;
-            text-shadow: 0 0 10px rgba(255, 0, 153, 0.5);
         }
-        .form-group {
-            margin-bottom: 20px;
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .form-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #ffffff;
-        }
-        .form-group input {
+        input[type="text"] {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ff0099;
+            margin: 10px 0;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 16px;
-            background: #111;
+        }
+        button {
+            background-color: #1877f2;
             color: white;
-        }
-        .form-group button {
-            width: 100%;
-            padding: 10px;
-            background-color: #3366ff; /* Royal Blue */
-            color: #fff;
             border: none;
+            padding: 10px 15px;
             border-radius: 4px;
-            font-size: 16px;
             cursor: pointer;
-            font-weight: bold;
-            transition: 0.3s;
+            font-size: 16px;
         }
-        .form-group button:hover {
-            background: #0044ff; /* Darker Blue on Hover */
-            transform: scale(1.02);
+        button:hover {
+            background-color: #166fe5;
         }
-        .results {
+        .result {
             margin-top: 20px;
-        }
-        .item {
-            margin-bottom: 20px;
             padding: 15px;
-            background-color: #1a001a;
-            border-radius: 5px;
-            border-left: 3px solid #ff0099;
-        }
-        .item strong {
-            display: block;
-            font-size: 14px;
-            margin-bottom: 5px;
-            color: #ff99cc; /* Light Pink */
-        }
-        .copy-btn {
-            background-color: #3366ff;
-            color: white;
-            border: none;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            padding: 5px 10px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-top: 10px;
+            background-color: #f9f9f9;
         }
         .error {
-            color: #ff3333;
+            color: red;
+        }
+        .chat, .post {
+            margin: 10px 0;
             padding: 10px;
-            background: #330000;
-            border-radius: 4px;
-            border: 1px solid #ff0066;
+            border-bottom: 1px solid #eee;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="mb-3" style="color: #ff0099;">VARUN DHAWAL</h1>
-        <h1>ᴀᴄᴄᴇꜱꜱ ᴄʜᴀᴛ ᴀɴᴅ ᴘᴏꜱᴛ ᴜɪᴅ</h1>
-        <div class="form-group">
-            <label for="access_token">ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ : </label>
-            <input type="text" id="access_token" placeholder="ᴇɴʏᴇʀ ʏᴏᴜʀ ꜰᴀᴄᴇʙᴏᴏᴋ ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ ">
+        <h1>Facebook Data Fetcher</h1>
+        
+        <div>
+            <h2>Get Messenger Chats</h2>
+            <input type="text" id="chatToken" placeholder="Enter Facebook Access Token">
+            <button onclick="fetchChats()">Fetch Chats</button>
+            <div id="chatResult" class="result"></div>
         </div>
-        <div class="form-group">
-            <button onclick="fetchMessengerChats()">ɢᴇᴛ ᴄʜᴀᴛꜱ</button>
+        
+        <div>
+            <h2>Get Facebook Posts</h2>
+            <input type="text" id="postToken" placeholder="Enter Facebook Access Token">
+            <button onclick="fetchPosts()">Fetch Posts</button>
+            <div id="postResult" class="result"></div>
         </div>
-        <div class="form-group">
-            <button onclick="fetchPosts()">ɢᴇᴛ ᴘᴏꜱᴛꜱ</button>
-        </div>
-        <div id="results" class="results"></div>
     </div>
 
-    <!-- Rest of your JavaScript remains the same -->
     <script>
-        function showError(message) {
-            const resultsDiv = document.getElementById("results");
-            resultsDiv.innerHTML = `<div class="error">${message}</div>`;
-        }
-
-        function fetchMessengerChats() {
-            const accessToken = document.getElementById("access_token").value.trim();
-            if (!accessToken) {
-                showError("Please enter correct token");
-                return;
-            }
-
-            fetch('/get_messenger_chats', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ access_token: accessToken })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                const resultsDiv = document.getElementById("results");
-                resultsDiv.innerHTML = '';
+        async function fetchChats() {
+            const token = document.getElementById('chatToken').value;
+            const resultDiv = document.getElementById('chatResult');
+            resultDiv.innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch('/get_messenger_chats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token: token })
+                });
+                const data = await response.json();
                 
                 if (data.error) {
-                    showError(`त्रुटि: ${data.error.message || data.error}`);
+                    resultDiv.innerHTML = `<div class="error">Error: ${data.error.message || data.error}</div>`;
                 } else {
+                    let html = '<h3>Your Chats:</h3>';
                     data.chats.forEach(chat => {
-                        const chatDiv = document.createElement("div");
-                        chatDiv.className = "item";
-                        chatDiv.innerHTML = `
-                            <strong>ᴄʜᴀᴛ ɴᴀᴍᴇ : </strong> ${chat.name}<br>
-                            <strong>ᴄʜᴀᴛ ᴜɪᴅ : </strong> ${chat.id}<br>
-                            <button class="copy-btn" onclick="copyToClipboard('${chat.id}')">ᴄᴏᴘʏ ᴄʜᴀᴛ ᴜɪᴅ</button>
-                        `;
-                        resultsDiv.appendChild(chatDiv);
+                        html += `<div class="chat"><strong>${chat.name}</strong> (ID: ${chat.id})</div>`;
                     });
+                    resultDiv.innerHTML = html;
                 }
-            })
-            .catch(error => {
-                showError(`त्रुटि: ${error.message}`);
-                console.error('Error:', error);
-            });
-        }
-
-        function fetchPosts() {
-            const accessToken = document.getElementById("access_token").value.trim();
-            if (!accessToken) {
-                showError("Please enter correct token");
-                return;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
             }
-
-            fetch('/get_posts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ access_token: accessToken })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                const resultsDiv = document.getElementById("results");
-                resultsDiv.innerHTML = '';
+        }
+        
+        async function fetchPosts() {
+            const token = document.getElementById('postToken').value;
+            const resultDiv = document.getElementById('postResult');
+            resultDiv.innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch('/get_posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token: token })
+                });
+                const data = await response.json();
                 
                 if (data.error) {
-                    showError(`त्रुटि: ${data.error.message || data.error}`);
+                    resultDiv.innerHTML = `<div class="error">Error: ${data.error.message || data.error}</div>`;
                 } else {
+                    let html = '<h3>Your Posts:</h3>';
                     data.posts.forEach(post => {
-                        const postDiv = document.createElement("div");
-                        postDiv.className = "item";
-                        postDiv.innerHTML = `
-                            <strong>ᴘᴏꜱᴛ ɴᴀᴍᴇ :  </strong> ${post.name || 'Unnamed Post'}<br>
-                            <strong>ᴘᴏꜱᴛ ᴜɪᴅ :</strong> ${post.id}<br>
-                            <strong>ᴘʀᴏꜰɪʟᴇ ɴᴀᴍᴇ : </strong> ${post.profile_name}<br>
-                            <button class="copy-btn" onclick="copyToClipboard('${post.id}')">ᴄᴏᴘʏ ᴘᴏꜱᴛ ᴜɪᴅ</button>
-                        `;
-                        resultsDiv.appendChild(postDiv);
+                        html += `
+                            <div class="post">
+                                <strong>${post.profile_name}</strong>: 
+                                ${post.name || "No text content"} (ID: ${post.id})
+                            </div>`;
                     });
+                    resultDiv.innerHTML = html;
                 }
-            })
-            .catch(error => {
-                showError(`त्रुटि: ${error.message}`);
-                console.error('Error:', error);
-            });
-        }
-
-        function copyToClipboard(uid) {
-            navigator.clipboard.writeText(uid).then(() => {
-                alert("UID copied to clipboard!");
-            });
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
         }
     </script>
 </body>
 </html>
 """
 
-# REST OF YOUR FLASK CODE REMAINS THE SAME
 @app.route('/')
 def home():
     return render_template_string(HTML_TEMPLATE)
@@ -239,6 +159,7 @@ def get_messenger_chats():
         if not access_token:
             return jsonify({'error': 'No provided token'})
         
+        # Facebook API call with error handling
         response = requests.get(
             f'https://graph.facebook.com/me/conversations?fields=participants,name&access_token={access_token}',
             timeout=30
@@ -256,7 +177,7 @@ def get_messenger_chats():
         chats = []
         for chat in response.json().get('data', []):
             chat_name = chat.get('name') or ', '.join(
-                [p['name'] for p in chat.get('participants', {}).get('data', [])
+                [p['name'] for p in chat.get('participants', {}).get('data', [])]
             )
             chats.append({
                 'id': chat['id'],
@@ -277,6 +198,7 @@ def get_posts():
         if not access_token:
             return jsonify({'error': 'Please enter the token'})
         
+        # Facebook API call with error handling
         response = requests.get(
             f'https://graph.facebook.com/me/feed?fields=id,message,from&limit=20&access_token={access_token}',
             timeout=30
