@@ -1,0 +1,18 @@
+# fly.toml
+app = "app py"  # अपना यूनिक ऐप नाम दें (लोअरकेस और हाइफन्स ओनली)
+
+[build]
+  builder = "paketobuildpacks/builder:base"
+  buildpacks = ["gcr.io/paketo-buildpacks/python"]
+
+[http_service]
+  internal_port = 5000  # वही पोर्ट जो आपका Flask ऐप इस्तेमाल करता है
+  force_https = true
+  auto_stop_machines = false  # बैकग्राउंड प्रोसेस के लिए जरूरी
+
+[env]
+  PORT = "5000"
+  PYTHON_VERSION = "3.9"  # या अपने Python वर्शन के अनुसार
+
+[deploy]
+  strategy = "immediate"
